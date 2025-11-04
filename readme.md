@@ -56,7 +56,7 @@ DataPreparer → ModelSelector → Trainer → Evaluator → Deployer
 
 ---
 
-## 👥 Organisation de l’équipe
+<!-- ## 👥 Organisation de l’équipe
 
 | Rôle | Nom | Responsabilités principales |
 |------|------|-----------------------------|
@@ -65,11 +65,11 @@ DataPreparer → ModelSelector → Trainer → Evaluator → Deployer
 | **Full-Stack & DevOps** | Personne C | Dashboard React, Docker, MinIO, PostgreSQL |
 | **MLOps & QA / Documentation** | Personne D | Tests, Postman, SonarQube, Selenium, documentation, Trello |
 
-Chaque membre livre un microservice **fonctionnel avec API, tests et documentation**.
+Chaque membre livre un microservice **fonctionnel avec API, tests et documentation**. -->
 
 ---
 
-## 💡 User Stories
+<!-- ## 💡 User Stories
 
 | ID | User Story |
 |----|-------------|
@@ -80,11 +80,11 @@ Chaque membre livre un microservice **fonctionnel avec API, tests et documentati
 | **US05** | Je veux optimiser les hyperparamètres automatiquement. |
 | **US06** | Je veux comparer les performances des modèles. |
 | **US07** | Je veux déployer le meilleur modèle via API. |
-| **US08** | Je veux visualiser les métriques et rapports sur le dashboard. |
+| **US08** | Je veux visualiser les métriques et rapports sur le dashboard. | 
 
----
+--- -->
 
-## 📁 Structure du projet
+<!-- ## 📁 Structure du projet
 
 ```
 📦 MicroLearn/
@@ -102,7 +102,7 @@ Chaque membre livre un microservice **fonctionnel avec API, tests et documentati
  ┣ 📜 README.md
 ```
 
----
+--- -->
 
 ## 🧩 Technologies & Outils
 
@@ -121,7 +121,7 @@ Chaque membre livre un microservice **fonctionnel avec API, tests et documentati
 
 ---
 
-## ⚙️ Installation & Exécution
+<!-- ## ⚙️ Installation & Exécution
 
 ### 1️⃣ Cloner le projet
 ```bash
@@ -142,7 +142,7 @@ docker-compose up --build
 | MLflow | http://localhost:5000 |
 | MinIO | http://localhost:9000 |
 
----
+--- -->
 
 ## 🧪 Tests & Qualité
 
