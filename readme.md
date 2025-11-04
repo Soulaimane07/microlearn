@@ -1,4 +1,4 @@
-# 🧠🚀 MicroLearn — Orchestrateur AutoML par microservices  
+# MicroLearn — Orchestrateur AutoML par microservices  
 
 > **Projet académique** – Plateforme AutoML distribuée par microservices, développée en mode startup par une équipe de 4 personnes.  
 > Objectif : automatiser et orchestrer le cycle complet de Machine Learning (préparation → sélection → entraînement → évaluation → déploiement) via API et dashboard web.  
@@ -197,15 +197,6 @@ docker-compose up --build
 - Logs & suivi MLflow  
 - Déploiement fonctionnel  
 
-🎁 **Bonus (pour impressionner les profs)**  
-✅ Authentification JWT  
-✅ Load balancing (NATS)  
-✅ Auto-scaling (Docker Compose scale)  
-✅ Notebook démonstratif  
-✅ Rapport PDF + Vidéo 5 min  
-
----
-
 ## 📞 Contacts encadrants
 
 | Nom | Email |
@@ -213,9 +204,3 @@ docker-compose up --build
 | **O. Ouedrhiri** | O.ouedrhiri@emsi.ma |
 | **H. Tabbaa** | H.Tabbaa@emsi.ma |
 | **M. Lachgar** | lachgar.m@gmail.com |
-
----
-
-### 🧩 Licence
-Projet académique — EMSI Casablanca 2025.  
-Tous droits réservés © MicroLearn Team.
