@@ -1,0 +1,63 @@
+# --- FICHIERS D’ENVIRONNEMENT ---
+.env
+.env.local
+.env.*.local
+*.env
+.env.*
+
+# --- NODE / NPM ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- BUILD / DIST ---
+dist/
+build/
+.tmp/
+.temp/
+
+# --- LOGS ---
+logs/
+*.log
+*.log.*
+debug.log
+
+# --- SYSTÈME ---
+.DS_Store
+Thumbs.db
+
+# --- IDE ---
+.vscode/
+.idea/
+*.iml
+
+# --- DOCKER ---
+docker-compose.override.yml
+docker-data/
+*/docker-data/
+
+# --- BACKEND JAVA / SPRING ---
+target/
+out/
+*.class
+*.war
+*.jar
+*.iml
+
+# --- GRADLE / MAVEN ---
+.gradle/
+build/
+!src/main/**/build/
+!src/test/**/build/
+mvnw.cmd
+mvnw
+.settings/
+.classpath
+.project
+
+# --- COVERAGE / TEST ---
+coverage/
+*.lcov
+test-output/
