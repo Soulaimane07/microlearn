@@ -208,3 +208,94 @@ docker-compose up --build
 | **O. Ouedrhiri** | O.ouedrhiri@emsi.ma |
 | **H. Tabbaa** | H.Tabbaa@emsi.ma |
 | **M. Lachgar** | lachgar.m@gmail.com |
+
+
+
+---
+
+---
+
+
+
+# 4 Microservices Architecture (Backend-Only)
+
+Each microservice is independent, containerized, and stateless.
+
+## 1️⃣ Dataset Manager Service
+
+Purpose: Handle datasets lifecycle
+Tech: Python (FastAPI) or Node.js
+
+Responsibilities:
+```
+Upload CSV/Parquet files
+
+Validate schema
+
+Store dataset metadata (PostgreSQL or MongoDB)
+
+Provide dataset samples/preprocessing preview
+
+Serve datasets to the Trainer service
+```
+---
+
+## 2️⃣ Feature & Model Selector Service
+
+Purpose: Automatically select model type + basic preprocessing
+Tech: Python (FastAPI), scikit-learn
+
+Responsibilities:
+```
+Detect problem type (classification, regression)
+
+Propose candidate models (RandomForest, XGBoost, MLP…)
+
+Handle auto-feature-engineering
+
+Return a list of models + suggested hyperparameters
+
+Cache model suggestions
+```
+---
+
+## 3️⃣ Trainer Service
+
+Purpose: Train models + evaluate them
+Tech: Python (FastAPI), PyTorch Lightning, MLflow
+
+Responsibilities:
+```
+Receive model type + dataset
+
+Train model
+
+Track metrics (accuracy, RMSE, F1…)
+
+Log experiments via MLflow
+
+Save best model to storage (S3/Azure Blob/MinIO)
+
+Stream training logs
+```
+---
+
+
+## 4️⃣ Hyperparameter Optimization (AutoML) Service
+
+Purpose: Run Optuna or Hyperopt to optimize hyperparameters
+Tech: Python + Optuna
+
+Responsibilities:
+```
+Launch optimization loop
+
+Try N models in parallel
+
+Choose best hyperparameters
+
+Return best model configuration
+
+Communicate with Trainer service for each trial
+```
+---
