@@ -1,48 +1,138 @@
 # app/services/autodetect.py
-# --------------------------------------------------------------------
-# Compose lower-level detectors into a single metadata detection
-# and provide a helper to convert detection result into a pipeline config.
-# --------------------------------------------------------------------
 import pandas as pd
-from app.services.id_detector import detect_id_columns
-from app.services.date_detector import detect_date_columns
-from app.services.type_detector import detect_column_types
-from typing import Dict
+from typing import Dict, List
 
-def detect_metadata(df: pd.DataFrame) -> Dict[str, list]:
+
+def detect_metadata(df: pd.DataFrame) -> Dict[str, List[str]]:
     """
-    Return dict with id_columns, date_columns, numeric_columns, categorical_columns.
+    Detect column types in a DataFrame
+
+    Returns dict with keys:
+    - id_columns: Columns that look like IDs
+    - date_columns: Columns with date/datetime types
+    - numeric_columns: Numeric columns
+    - categorical_columns: Categorical/string columns
     """
-    id_cols = detect_id_columns(df)
-    date_cols = detect_date_columns(df)
-    types = detect_column_types(df)
-    numeric = types["numeric"]
-    categorical = [c for c in types["categorical"] if c not in id_cols + date_cols]
-    categorical = [c for c in categorical if c not in numeric]
-    return {
-        "id_columns": id_cols,
-        "date_columns": date_cols,
-        "numeric_columns": numeric,
-        "categorical_columns": categorical
+
+    metadata = {
+        "id_columns": [],
+        "date_columns": [],
+        "numeric_columns": [],
+        "categorical_columns": []
     }
 
-def metadata_to_pipeline_config(meta: Dict[str, list]) -> Dict:
+    for col in df.columns:
+        col_lower = col.lower()
+
+        # Check for ID columns (by name pattern)
+        if any(pattern in col_lower for pattern in ['id', '_id', 'key', '_key']):
+            metadata["id_columns"].append(col)
+            continue  # Don't classify as other types
+
+        # Check for date columns
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            metadata["date_columns"].append(col)
+        elif any(pattern in col_lower for pattern in ['date', 'time', 'datetime', 'timestamp']):
+            metadata["date_columns"].append(col)
+        # Check for numeric columns
+        elif pd.api.types.is_numeric_dtype(df[col]):
+            metadata["numeric_columns"].append(col)
+        # Check for categorical columns
+        elif pd.api.types.is_object_dtype(df[col]) or pd.api.types.is_categorical_dtype(df[col]):
+            metadata["categorical_columns"].append(col)
+
+    # Additional heuristic: treat very high-uniqueness columns as identifiers
+    # (e.g., columns where >90% of values are unique and there are enough
+    # distinct values to be meaningful). This helps drop accidental ID-like
+    # numeric columns that would otherwise be scaled or treated as features.
+    try:
+        n_rows = len(df)
+        for col in df.columns:
+            if col in metadata["id_columns"]:
+                continue
+            try:
+                unique_count = df[col].nunique(dropna=True)
+            except Exception:
+                unique_count = 0
+
+            # Avoid marking tiny datasets' columns as IDs
+            if n_rows > 0 and unique_count >= 20:
+                unique_ratio = unique_count / float(n_rows)
+                if unique_ratio >= 0.90:
+                    metadata["id_columns"].append(col)
+    except Exception:
+        # If anything goes wrong in heuristics, ignore and return current metadata
+        pass
+
+    return metadata
+
+
+def metadata_to_pipeline_config(meta: Dict[str, List[str]]) -> Dict:
     """
-    Convert detection metadata to an automatic pipeline configuration.
-    The pipeline config is deliberately simple:
-      - drop id columns
-      - treat detected date columns as dates (kept)
-      - impute numeric with mean
-      - impute categorical with most_frequent
-      - apply standard scaling to numeric
-      - one-hot encode categorical
+    Convert detected metadata into a pipeline configuration
+
+    Strategy:
+    1. Drop ID columns (not useful for ML)
+    2. Parse date columns
+    3. Handle missing values
+    4. Encode categorical columns
+    5. Scale numeric columns
     """
-    return {
-        "drop_columns": meta.get("id_columns", []),
-        "date_columns": meta.get("date_columns", []),
-        "numeric_columns": meta.get("numeric_columns", []),
-        "categorical_columns": meta.get("categorical_columns", []),
-        "impute": True,
-        "scaling": "standard",
-        "onehot": True
-    }
+
+    steps = []
+
+    # Step 1: Drop ID columns
+    if meta.get("id_columns"):
+        steps.append({
+            "type": "drop_columns",
+            "columns": meta["id_columns"]
+        })
+
+    # Step 2: Parse date columns (but don't do anything with them yet)
+    # In a real scenario, you might extract features like day, month, year
+    if meta.get("date_columns"):
+        steps.append({
+            "type": "parse_dates",
+            "columns": meta["date_columns"]
+        })
+
+    # Step 3: Handle missing values
+    # Prefer imputation over dropping rows to avoid empty datasets.
+    # Impute numeric columns with median and categorical with mode.
+    if meta.get("numeric_columns"):
+        steps.append({
+            "type": "handle_missing",
+            "method": "fill_median",
+            "columns": meta.get("numeric_columns")
+        })
+
+    if meta.get("categorical_columns"):
+        steps.append({
+            "type": "handle_missing",
+            "method": "fill_mode",
+            "columns": meta.get("categorical_columns")
+        })
+
+    # Step 4: Encode categorical columns
+    if meta.get("categorical_columns"):
+        steps.append({
+            "type": "encode_categorical",
+            "method": "label",
+            "columns": meta["categorical_columns"]
+        })
+
+    # Step 5: Scale numeric columns
+    # Only scale columns that aren't IDs (already dropped) and aren't dates
+    numeric_to_scale = [
+        col for col in meta.get("numeric_columns", [])
+        if col not in meta.get("id_columns", [])
+    ]
+
+    if numeric_to_scale:
+        steps.append({
+            "type": "scale_numeric",
+            "method": "standard",
+            "columns": numeric_to_scale
+        })
+
+    return {"steps": steps}

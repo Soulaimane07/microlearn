@@ -1,109 +1,223 @@
 # app/storage/minio_client.py
-# --------------------------------------------------------------------
-# Robust MinIO helper functions: upload_bytes, download_bytes.
-# Tries to be compatible with different minio SDK versions by:
-# - using keyword endpoint=...
-# - avoiding imports of datatypes specific to SDK versions
-# - creating buckets safely
-# --------------------------------------------------------------------
 from minio import Minio
-from app.core.config import settings
-from app.core.logger import logger
+from minio.error import S3Error
 from io import BytesIO
+from app.core.logger import logger
+from app.core.config import settings
 
-_client = None
+# Initialize MinIO client with bucket_name set
+minio_client = Minio(
+    settings.MINIO_ENDPOINT,
+    access_key=settings.MINIO_ROOT_USER,
+    secret_key=settings.MINIO_ROOT_PASSWORD,
+    secure=settings.MINIO_SECURE
+)
 
-def get_client():
-    """
-    Return a Minio client instance. Use 'endpoint=' keyword for maximum
-    compatibility across MinIO SDK versions.
-    """
-    global _client
-    if _client is None:
-        _client = Minio(
-            endpoint=settings.MINIO_ENDPOINT,
-            access_key=settings.MINIO_ROOT_USER,
-            secret_key=settings.MINIO_ROOT_PASSWORD,
-            secure=False
-        )
-    return _client
 
-def ensure_bucket(bucket_name: str):
-    """
-    Ensure bucket exists. Different MinIO client versions expose different
-    APIs; this function attempts a safe create-when-needed approach.
-    """
-    client = get_client()
+def ensure_bucket_exists():
+    """Create bucket if it doesn't exist"""
     try:
-        # try bucket_exists first if available
-        if hasattr(client, "bucket_exists"):
-            try:
-                exists = client.bucket_exists(bucket_name)
-                if exists:
-                    return
-            except TypeError:
-                # some SDK versions expect a single arg object; fall through
-                pass
-        # fallback: try to create bucket and ignore if it already exists
+        # Try-except approach to handle different API versions
         try:
-            client.make_bucket(bucket_name)
-            logger.info(f"Created bucket {bucket_name}")
-        except Exception as exc:
-            # ignore error if bucket exists; else raise
-            msg = str(exc).lower()
-            if "already exists" in msg or "bucket already owned by you" in msg or "bucket exists" in msg:
-                return
-            # bucket_exists may work on second try
-            if hasattr(client, "bucket_exists"):
+            # Try new API (minio >= 7.0)
+            found = minio_client.bucket_exists(settings.MINIO_BUCKET)
+        except TypeError:
+            # Fallback to old API - bucket_exists takes no args
+            # Set bucket first, then check
+            try:
+                # This is for very old versions where you set bucket on client
+                minio_client.bucket_name = settings.MINIO_BUCKET
+                found = minio_client.bucket_exists()
+            except AttributeError:
+                # If that doesn't work, try listing buckets
+                buckets = minio_client.list_buckets()
+                found = any(b.name == settings.MINIO_BUCKET for b in buckets)
+
+        if not found:
+            try:
+                # Try new API
+                minio_client.make_bucket(settings.MINIO_BUCKET)
+            except TypeError:
+                # Try with location parameter
                 try:
-                    if client.bucket_exists(bucket_name):
-                        return
-                except Exception:
-                    pass
-            # re-raise if unknown
-            raise
-    except Exception as exc:
-        logger.error(f"Failed ensuring bucket {bucket_name}: {exc}")
+                    minio_client.make_bucket(settings.MINIO_BUCKET, location='us-east-1')
+                except TypeError:
+                    # Very old API
+                    minio_client.bucket_name = settings.MINIO_BUCKET
+                    minio_client.make_bucket()
+
+            logger.info(f"Created bucket: {settings.MINIO_BUCKET}")
+        else:
+            logger.info(f"Bucket already exists: {settings.MINIO_BUCKET}")
+
+    except S3Error as e:
+        logger.error(f"S3 error: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error with bucket operations: {e}")
+        import minio as minio_module
+        logger.error(f"MinIO version: {minio_module.__version__}")
         raise
 
-def upload_bytes(object_name: str, data: bytes):
-    """
-    Upload bytes to configured bucket at object_name.
-    """
-    client = get_client()
-    bucket = settings.MINIO_BUCKET
-    ensure_bucket(bucket)
 
+def init_minio():
+    """Initialize MinIO - call this from app startup"""
+    ensure_bucket_exists()
+
+
+def upload_bytes(object_name: str, data: bytes, content_type: str = "application/octet-stream"):
+    """
+    Upload bytes to MinIO
+
+    Args:
+        object_name: Path/name of object in MinIO (e.g., "raw/file.csv")
+        data: Bytes to upload
+        content_type: MIME type of the data
+
+    Returns:
+        ObjectWriteResult from MinIO
+
+    Raises:
+        Exception if upload fails
+    """
     try:
-        # put_object expects a stream in many versions.
-        client.put_object(bucket, object_name, data=BytesIO(data), length=len(data))
-        logger.info(f"Uploaded {object_name} to bucket {bucket}")
-    except TypeError:
-        # some versions accept the data and length as positional args
-        client.put_object(bucket, object_name, BytesIO(data), len(data))
-        logger.info(f"Uploaded {object_name} to bucket {bucket}")
-    except Exception as exc:
-        logger.error(f"MinIO upload failed: {exc}")
+        # Ensure bucket exists before upload
+        ensure_bucket_exists()
+
+        # Convert bytes to BytesIO stream
+        data_stream = BytesIO(data)
+        data_length = len(data)
+
+        result = minio_client.put_object(
+            bucket_name=settings.MINIO_BUCKET,
+            object_name=object_name,
+            data=data_stream,
+            length=data_length,
+            content_type=content_type
+        )
+
+        logger.info(f"Uploaded {object_name} to MinIO ({data_length} bytes)")
+        return result
+
+    except S3Error as e:
+        logger.error(f"S3 error uploading {object_name}: {e}")
         raise
+    except Exception as e:
+        logger.error(f"Error uploading {object_name}: {e}")
+        raise
+
 
 def download_bytes(object_name: str) -> bytes:
     """
-    Download object bytes from configured bucket.
-    """
-    client = get_client()
-    bucket = settings.MINIO_BUCKET
-    ensure_bucket(bucket)  # will create bucket if missing -> not ideal for download but safe
+    Download object from MinIO as bytes
 
+    Args:
+        object_name: Path/name of object in MinIO
+
+    Returns:
+        bytes: File content
+
+    Raises:
+        FileNotFoundError: If object doesn't exist
+        Exception: For other errors
+    """
     try:
-        response = client.get_object(bucket, object_name)
+        response = minio_client.get_object(
+            bucket_name=settings.MINIO_BUCKET,
+            object_name=object_name
+        )
+
+        # Read all data
         data = response.read()
-        try:
-            response.close()
-            response.release_conn()
-        except Exception:
-            pass
-        logger.info(f"Downloaded {object_name} from {bucket}")
+        response.close()
+        response.release_conn()
+
+        logger.info(f"Downloaded {object_name} from MinIO ({len(data)} bytes)")
         return data
-    except Exception as exc:
-        logger.error(f"MinIO download failed: {exc}")
+
+    except S3Error as e:
+        if e.code == "NoSuchKey":
+            logger.error(f"Object not found: {object_name}")
+            raise FileNotFoundError(f"Object not found in MinIO: {object_name}")
+        else:
+            logger.error(f"S3 error downloading {object_name}: {e}")
+            raise
+    except Exception as e:
+        logger.error(f"Error downloading {object_name}: {e}")
+        raise
+
+
+def list_objects(prefix: str = None) -> list:
+    """
+    List objects in MinIO bucket
+
+    Args:
+        prefix: Optional prefix to filter objects (e.g., "raw/")
+
+    Returns:
+        list: List of object names
+    """
+    try:
+        objects = minio_client.list_objects(
+            bucket_name=settings.MINIO_BUCKET,
+            prefix=prefix,
+            recursive=True
+        )
+
+        object_names = [obj.object_name for obj in objects]
+        logger.info(f"Listed {len(object_names)} objects with prefix '{prefix}'")
+        return object_names
+
+    except S3Error as e:
+        logger.error(f"Error listing objects: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error listing objects: {e}")
+        raise
+
+
+def delete_object(object_name: str):
+    """
+    Delete object from MinIO
+
+    Args:
+        object_name: Path/name of object to delete
+    """
+    try:
+        minio_client.remove_object(
+            bucket_name=settings.MINIO_BUCKET,
+            object_name=object_name
+        )
+        logger.info(f"Deleted {object_name} from MinIO")
+
+    except S3Error as e:
+        logger.error(f"Error deleting {object_name}: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting {object_name}: {e}")
+        raise
+
+
+def object_exists(object_name: str) -> bool:
+    """
+    Check if object exists in MinIO
+
+    Args:
+        object_name: Path/name of object
+
+    Returns:
+        bool: True if exists, False otherwise
+    """
+    try:
+        minio_client.stat_object(
+            bucket_name=settings.MINIO_BUCKET,
+            object_name=object_name
+        )
+        return True
+    except S3Error as e:
+        if e.code == "NoSuchKey":
+            return False
+        raise
+    except Exception as e:
+        logger.error(f"Error checking existence of {object_name}: {e}")
         raise

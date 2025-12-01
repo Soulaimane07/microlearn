@@ -1,124 +1,242 @@
 # app/services/pipeline.py
-# --------------------------------------------------------------------
-# Deterministic pipeline runner.
-# - If config is None, runs an auto pipeline based on heuristics.
-# - Returns a pandas DataFrame ready for ML (no id-columns, numeric scaled,
-#   categorical one-hot encoded).
-# --------------------------------------------------------------------
-from typing import Optional, Dict, List
 import pandas as pd
-import numpy as np
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
+from typing import Dict, List, Optional
+from app.core.logger import logger
 
-from app.services.autodetect import detect_metadata, metadata_to_pipeline_config
 
-def _safe_list(cols: Optional[List[str]]) -> List[str]:
-    return cols or []
-
-def run_pipeline(df: pd.DataFrame, config: Optional[Dict] = None) -> pd.DataFrame:
+def run_pipeline(df: pd.DataFrame, pipeline_conf: Optional[Dict] = None) -> pd.DataFrame:
     """
-    Run pipeline on df.
-    If config is None -> auto-detect metadata and build pipeline config.
-    Config keys:
-      - drop_columns: list[str]
-      - date_columns: list[str]
-      - numeric_columns: list[str]
-      - categorical_columns: list[str]
-      - impute: bool
-      - scaling: 'standard' or None
-      - onehot: bool
+    Execute data preparation pipeline on DataFrame
+
+    Args:
+        df: Input DataFrame
+        pipeline_conf: Pipeline configuration dict with 'steps' key.
+                      If None, auto-generates a basic pipeline.
+
+    Returns:
+        Processed DataFrame
     """
-    working = df.copy()
 
-    # if no config provided, auto-generate
-    if config is None:
-        meta = detect_metadata(working)
-        config = metadata_to_pipeline_config(meta)
+    if df.empty:
+        raise ValueError("Input DataFrame is empty")
 
-    drop_cols = _safe_list(config.get("drop_columns"))
-    date_cols = _safe_list(config.get("date_columns"))
-    numeric_cols = _safe_list(config.get("numeric_columns"))
-    categorical_cols = _safe_list(config.get("categorical_columns"))
-    impute = config.get("impute", False)
-    scaling = config.get("scaling", None)
-    onehot = config.get("onehot", False)
+    logger.info(f"Starting pipeline with {len(df)} rows, {len(df.columns)} columns")
+    logger.debug(f"Input columns: {list(df.columns)}")
 
-    # ensure columns exist in DF (defensive)
-    drop_cols = [c for c in drop_cols if c in working.columns]
-    date_cols = [c for c in date_cols if c in working.columns]
-    numeric_cols = [c for c in numeric_cols if c in working.columns]
-    categorical_cols = [c for c in categorical_cols if c in working.columns]
+    # Auto-generate pipeline if not provided
+    if pipeline_conf is None:
+        logger.info("No pipeline config provided, using automatic pipeline")
+        pipeline_conf = _auto_generate_pipeline(df)
 
-    # drop columns (ids)
-    if drop_cols:
-        working = working.drop(columns=drop_cols)
+    if not isinstance(pipeline_conf, dict) or 'steps' not in pipeline_conf:
+        raise ValueError("Pipeline config must be a dict with 'steps' key")
 
-    # parse dates
-    for c in date_cols:
+    # Execute each step
+    processed = df.copy()
+
+    for i, step in enumerate(pipeline_conf.get('steps', [])):
+        step_type = step.get('type')
+        logger.info(f"Executing step {i + 1}: {step_type}")
+
         try:
-            working[c] = pd.to_datetime(working[c], errors="coerce")
-        except Exception:
-            # if parse fails, just leave original values
-            pass
+            if step_type == 'drop_columns':
+                processed = _drop_columns(processed, step)
+            elif step_type == 'handle_missing':
+                processed = _handle_missing(processed, step)
+            elif step_type == 'encode_categorical':
+                processed = _encode_categorical(processed, step)
+            elif step_type == 'scale_numeric':
+                processed = _scale_numeric(processed, step)
+            elif step_type == 'parse_dates':
+                processed = _parse_dates(processed, step)
+            else:
+                logger.warning(f"Unknown step type: {step_type}, skipping")
 
-    # numeric imputation
-    if impute and numeric_cols:
-        # use mean for numeric
-        imp = SimpleImputer(strategy="mean")
-        for col in numeric_cols:
-            try:
-                arr = working[[col]].values  # 2D
-                transformed = imp.fit_transform(arr)
-                # transformed shape (n,1) -> assign flattened
-                working[col] = transformed.ravel()
-            except Exception:
-                # coerce to numeric if possible
-                working[col] = pd.to_numeric(working[col], errors="coerce")
+            logger.info(f"After step {i + 1}: {len(processed)} rows, {len(processed.columns)} columns")
 
-    # categorical imputation
-    if impute and categorical_cols:
-        imp = SimpleImputer(strategy="most_frequent")
-        for col in categorical_cols:
-            try:
-                arr = working[[col]].astype(object).values
-                transformed = imp.fit_transform(arr)
-                working[col] = transformed.ravel()
-            except Exception:
-                # fallback: fillna with placeholder
-                working[col] = working[col].fillna("NA")
+        except KeyError as e:
+            # Column not found - check if it was already dropped
+            missing_col = str(e).strip("'")
+            if missing_col not in processed.columns:
+                logger.warning(f"Column '{missing_col}' not found (may have been dropped in previous step), skipping")
+                continue
+            else:
+                raise ValueError(f"Column '{missing_col}' not found in DataFrame") from e
+        except Exception as e:
+            logger.error(f"Error in step {i + 1} ({step_type}): {e}")
+            raise ValueError(f"Pipeline step {i + 1} failed: {str(e)}") from e
 
-    # scaling
-    if scaling == "standard" and numeric_cols:
-        scaler = StandardScaler()
-        # build subset of numeric cols that still exist
-        num = [c for c in numeric_cols if c in working.columns]
+    logger.info(f"Pipeline complete: {len(processed)} rows, {len(processed.columns)} columns")
+    return processed
+
+
+def _auto_generate_pipeline(df: pd.DataFrame) -> Dict:
+    """Generate a basic automatic pipeline"""
+    from app.services.autodetect import detect_metadata, metadata_to_pipeline_config
+
+    meta = detect_metadata(df)
+    return metadata_to_pipeline_config(meta)
+
+
+def _drop_columns(df: pd.DataFrame, step: Dict) -> pd.DataFrame:
+    """Drop specified columns"""
+    columns = step.get('columns', [])
+
+    if not columns:
+        logger.info("No columns to drop")
+        return df
+
+    # Only drop columns that actually exist
+    existing_cols = [col for col in columns if col in df.columns]
+    missing_cols = [col for col in columns if col not in df.columns]
+
+    if missing_cols:
+        logger.warning(f"Columns not found (skipping): {missing_cols}")
+
+    if existing_cols:
+        logger.info(f"Dropping {len(existing_cols)} columns: {existing_cols}")
+        df = df.drop(columns=existing_cols)
+
+    return df
+
+
+def _handle_missing(df: pd.DataFrame, step: Dict) -> pd.DataFrame:
+    """Handle missing values"""
+    method = step.get('method', 'drop')
+    columns = step.get('columns')
+
+    if columns is None:
+        # Apply to all columns
+        target_cols = df.columns.tolist()
+    else:
+        # Only use columns that exist
+        target_cols = [col for col in columns if col in df.columns]
+
+    if not target_cols:
+        logger.info("No columns to process for missing values")
+        return df
+
+    if method == 'drop':
+        logger.info(f"Dropping rows with missing values in {len(target_cols)} columns")
+        df = df.dropna(subset=target_cols)
+    elif method == 'fill_mean':
+        logger.info(f"Filling missing values with mean")
+        for col in target_cols:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                df[col] = df[col].fillna(df[col].mean())
+    elif method == 'fill_median':
+        logger.info(f"Filling missing values with median")
+        for col in target_cols:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                df[col] = df[col].fillna(df[col].median())
+    elif method == 'fill_mode':
+        logger.info(f"Filling missing values with mode")
+        for col in target_cols:
+            if not df[col].mode().empty:
+                df[col] = df[col].fillna(df[col].mode()[0])
+    else:
+        logger.warning(f"Unknown missing value method: {method}")
+
+    return df
+
+
+def _encode_categorical(df: pd.DataFrame, step: Dict) -> pd.DataFrame:
+    """Encode categorical columns"""
+    method = step.get('method', 'label')
+    columns = step.get('columns', [])
+
+    # Only use columns that exist
+    existing_cols = [col for col in columns if col in df.columns]
+    missing_cols = [col for col in columns if col not in df.columns]
+
+    if missing_cols:
+        logger.warning(f"Categorical columns not found (skipping): {missing_cols}")
+
+    if not existing_cols:
+        logger.info("No categorical columns to encode")
+        return df
+
+    if method == 'label':
+        logger.info(f"Label encoding {len(existing_cols)} columns")
+        for col in existing_cols:
+            df[col] = pd.Categorical(df[col]).codes
+    elif method == 'onehot':
+        logger.info(f"One-hot encoding {len(existing_cols)} columns")
+        df = pd.get_dummies(df, columns=existing_cols, prefix=existing_cols)
+    else:
+        logger.warning(f"Unknown encoding method: {method}")
+
+    return df
+
+
+def _scale_numeric(df: pd.DataFrame, step: Dict) -> pd.DataFrame:
+    """Scale numeric columns"""
+    method = step.get('method', 'standard')
+    columns = step.get('columns', [])
+
+    # Only use columns that exist
+    existing_cols = [col for col in columns if col in df.columns]
+    missing_cols = [col for col in columns if col not in df.columns]
+
+    if missing_cols:
+        logger.warning(f"Numeric columns not found (skipping): {missing_cols}")
+
+    if not existing_cols:
+        logger.info("No numeric columns to scale")
+        return df
+
+    if method == 'standard':
+        logger.info(f"Standard scaling {len(existing_cols)} columns")
+        for col in existing_cols:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                mean = df[col].mean()
+                std = df[col].std()
+                if std > 0:
+                    df[col] = (df[col] - mean) / std
+    elif method == 'minmax':
+        logger.info(f"MinMax scaling {len(existing_cols)} columns")
+        for col in existing_cols:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                min_val = df[col].min()
+                max_val = df[col].max()
+                if max_val > min_val:
+                    df[col] = (df[col] - min_val) / (max_val - min_val)
+    elif method == 'robust':
+        logger.info(f"Robust scaling {len(existing_cols)} columns")
+        for col in existing_cols:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                median = df[col].median()
+                q75 = df[col].quantile(0.75)
+                q25 = df[col].quantile(0.25)
+                iqr = q75 - q25
+                if iqr > 0:
+                    df[col] = (df[col] - median) / iqr
+    else:
+        logger.warning(f"Unknown scaling method: {method}")
+
+    return df
+
+
+def _parse_dates(df: pd.DataFrame, step: Dict) -> pd.DataFrame:
+    """Parse date columns"""
+    columns = step.get('columns', [])
+
+    # Only use columns that exist
+    existing_cols = [col for col in columns if col in df.columns]
+    missing_cols = [col for col in columns if col not in df.columns]
+
+    if missing_cols:
+        logger.warning(f"Date columns not found (skipping): {missing_cols}")
+
+    if not existing_cols:
+        logger.info("No date columns to parse")
+        return df
+
+    logger.info(f"Parsing {len(existing_cols)} date columns")
+    for col in existing_cols:
         try:
-            working[num] = scaler.fit_transform(working[num].astype(float))
-        except Exception:
-            # if conversion fails, try per-column
-            for col in num:
-                try:
-                    working[col] = scaler.fit_transform(working[[col]].astype(float))
-                except Exception:
-                    pass
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+        except Exception as e:
+            logger.warning(f"Failed to parse date column {col}: {e}")
 
-    # one-hot encoding
-    if onehot and categorical_cols:
-        cat_cols = [c for c in categorical_cols if c in working.columns]
-        if cat_cols:
-            try:
-                working = pd.get_dummies(working, columns=cat_cols, drop_first=False)
-            except Exception:
-                # fallback: encode each categorical col manually
-                for c in cat_cols:
-                    try:
-                        dummies = pd.get_dummies(working[c], prefix=c)
-                        working = pd.concat([working.drop(columns=[c]), dummies], axis=1)
-                    except Exception:
-                        continue
-
-    # final: drop any columns with all-NaN
-    working = working.dropna(axis=1, how="all")
-
-    return working
+    return df
