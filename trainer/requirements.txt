@@ -1,8 +1,8 @@
 # Trainer Microservice - Python Dependencies
-# Training and ML (PyTorch removed for faster build - can be added later)
-# torch==2.1.2
-# pytorch-lightning==2.1.3
-# ray[default]==2.9.0
+# Training and ML
+torch==2.1.2
+pytorch-lightning==2.1.3
+ray[default]==2.9.0
 scikit-learn==1.2.2
 xgboost==1.7.6
 lightgbm==4.0.0

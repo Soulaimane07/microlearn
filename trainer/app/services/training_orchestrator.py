@@ -9,7 +9,7 @@ import pandas as pd
 import io
 from datetime import datetime
 from typing import Dict, Any, Optional
-# import torch  # Commented out for faster build - can be added later
+import torch
 
 from app.core.config import settings
 from app.core.logger import logger
@@ -31,11 +31,9 @@ class TrainingOrchestrator:
         self.model_factory = ModelFactory()
         self.mlflow_tracker = MLflowTracker()
         
-        # Check GPU availability (torch disabled for now)
-        # self.gpu_available = torch.cuda.is_available()
-        # self.num_gpus = torch.cuda.device_count() if self.gpu_available else 0
-        self.gpu_available = False
-        self.num_gpus = 0
+        # Check GPU availability
+        self.gpu_available = torch.cuda.is_available()
+        self.num_gpus = torch.cuda.device_count() if self.gpu_available else 0
         
         logger.info(f"Training Orchestrator initialized")
         logger.info(f"GPU Available: {self.gpu_available}, Count: {self.num_gpus}")

@@ -40,15 +40,14 @@ async def lifespan(app: FastAPI):
         logger.error(f"✗ Failed to initialize MinIO: {e}")
         logger.warning("App will continue but storage operations may fail")
     
-    # Check GPU availability (torch disabled for now)
-    # import torch
-    # if torch.cuda.is_available():
-    #     logger.info(f"✓ GPU available: {torch.cuda.device_count()} device(s)")
-    #     for i in range(torch.cuda.device_count()):
-    #         logger.info(f"  - GPU {i}: {torch.cuda.get_device_name(i)}")
-    # else:
-    #     logger.info("ℹ No GPU available, using CPU")
-    logger.info("ℹ GPU support disabled (torch not installed), using CPU only")
+    # Check GPU availability
+    import torch
+    if torch.cuda.is_available():
+        logger.info(f"✓ GPU available: {torch.cuda.device_count()} device(s)")
+        for i in range(torch.cuda.device_count()):
+            logger.info(f"  - GPU {i}: {torch.cuda.get_device_name(i)}")
+    else:
+        logger.info("ℹ No GPU available, using CPU")
     
     logger.info(f"{settings.SERVICE_NAME} started successfully")
     
