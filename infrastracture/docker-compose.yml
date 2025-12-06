@@ -40,11 +40,76 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
 
-      MINIO_HOST: minio:9000
-      MINIO_ACCESS: minioadmin
-      MINIO_SECRET: minioadmin
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_BUCKET: data-preparer
+      MINIO_SECURE: "false"
     ports:
       - "8000:8000"
+
+  model-selector:
+    build:
+      context: ./model-selector
+    container_name: model-selector
+    restart: always
+    depends_on:
+      - postgres
+      - minio
+      - data-preparer
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: microlearn
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_BUCKET: data-preparer
+      MINIO_SECURE: "false"
+
+      DATA_PREPARER_URL: http://data-preparer:8000
+    ports:
+      - "8001:8001"
+
+  trainer:
+    build:
+      context: ./trainer
+    container_name: trainer
+    restart: always
+    depends_on:
+      - postgres
+      - minio
+      - model-selector
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: microlearn
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_SECURE: "false"
+      MINIO_BUCKET_MODELS: trained-models
+      MINIO_BUCKET_DATA: data-preparer
+
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      
+      MODEL_SELECTOR_URL: http://model-selector:8001
+    ports:
+      - "8002:8002"
+    # Uncomment for GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
 
 volumes:
   postgres_data:
