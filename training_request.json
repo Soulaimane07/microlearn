@@ -1,0 +1,13 @@
+{
+  "model_id": "random_forest_classifier",
+  "data_id": "processed/test_sample_processed_20251207_203636.csv",
+  "task_type": "classification",
+  "epochs": 10,
+  "target_column": "target",
+  "hyperparameters": {
+    "n_estimators": 50,
+    "max_depth": 5
+  },
+  "experiment_name": "test_experiment",
+  "run_name": "rf_test_run"
+}

@@ -165,16 +165,28 @@ class DatasetAnalyzer:
         
         target = df[target_column]
         n_unique = target.nunique()
+        n_samples = len(df)
         
         # Check if numeric
         if pd.api.types.is_numeric_dtype(target):
-            # If few unique values, likely classification
-            if n_unique <= 20 and n_unique < len(df) * 0.05:
-                logger.info(f"Numeric target with {n_unique} unique values - classification")
+            # Binary classification (0/1, True/False, or 2 unique values)
+            if n_unique == 2:
+                logger.info(f"Binary numeric target (2 unique values) - classification")
                 return "classification"
-            else:
-                logger.info(f"Numeric target with {n_unique} unique values - regression")
-                return "regression"
+            
+            # Multi-class with few categories (< 20 unique values and < 5% of dataset size)
+            if n_unique <= 20 and n_unique < n_samples * 0.05:
+                logger.info(f"Numeric target with {n_unique} unique values (<5% of data) - classification")
+                return "classification"
+            
+            # If all values are integers and small range, likely classification
+            if target.dtype in ['int64', 'int32'] and n_unique < 30:
+                logger.info(f"Integer target with {n_unique} unique values - classification")
+                return "classification"
+            
+            # Otherwise regression
+            logger.info(f"Numeric target with {n_unique} unique values - regression")
+            return "regression"
         else:
             # Categorical target = classification
             logger.info(f"Categorical target with {n_unique} classes - classification")

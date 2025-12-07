@@ -31,7 +31,7 @@ services:
 
   data-preparer:
     build:
-      context: ./data-preparer
+      context: ./services/micro1-data_preparer
     container_name: data-preparer
     restart: always
     depends_on:
@@ -56,7 +56,77 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data-preparer:/app
+      - ./services/micro1-data_preparer:/app
+
+  model-selector:
+    build:
+      context: ./services/micro2-model_selector
+    container_name: model-selector
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    environment:
+      # Database configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: microlearn
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      
+      # MinIO configuration
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_BUCKET: data-preparer
+      MINIO_SECURE: false
+      
+      # Service URLs
+      DATA_PREPARER_URL: http://data-preparer:8000
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./services/micro2-model_selector:/app
+
+  trainer:
+    build:
+      context: ./services/micro3-trainer
+    container_name: trainer
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    environment:
+      # Service Configuration
+      SERVICE_NAME: trainer
+      SERVICE_PORT: 8002
+      
+      # PostgreSQL Configuration
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: microlearn
+      
+      # MinIO Configuration
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_SECURE: false
+      MINIO_BUCKET_MODELS: trained-models
+      MINIO_BUCKET_DATA: data-preparer
+      
+      # Service URLs
+      DATA_PREPARER_URL: http://data-preparer:8000
+      MODEL_SELECTOR_URL: http://model-selector:8001
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./services/micro3-trainer:/app
 
 volumes:
   postgres_data:
