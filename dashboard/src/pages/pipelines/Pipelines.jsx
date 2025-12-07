@@ -8,8 +8,9 @@ function Pipelines() {
   return (
     <div className="flex min-h-screen bg-gray-50 text-gray-900">
       <Sidebar />
+      
       <div className="flex-1 flex flex-col">
-        <Topbar title="Pipelines" />
+        <Topbar title="Pipelines"  />
 
         <main className="flex-1 p-8">
           <PipelinesTable />
