@@ -1,4 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
+import { logout } from "../../redux/slices/authSlice";
+import { useDispatch } from "react-redux";
 
 function Topbar({ title = "Overview"}) {
   const location = useLocation();
@@ -14,6 +16,8 @@ function Topbar({ title = "Overview"}) {
       </span>
     );
   });
+
+  const dispatch = useDispatch()
 
   return (
     <header className="w-full border-b border-gray-300 px-8 py-4 flex items-center justify-between bg-gray-100 relative">
@@ -36,7 +40,7 @@ function Topbar({ title = "Overview"}) {
           <ul className="py-2 text-gray-700 text-sm">
             <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">Profile</li>
             <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">Settings</li>
-            <li className="px-4 py-2 hover:bg-red-100 cursor-pointer text-red-600">Logout</li>
+            <button onClick={()=> dispatch(logout())} className="px-4 w-full text-left py-2 hover:bg-red-100 cursor-pointer text-red-600">Logout</button>
           </ul>
         </div>
       </div>

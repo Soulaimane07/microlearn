@@ -1,14 +1,16 @@
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { addDataset } from "../../redux/slices/datasetsSlice";
 
 export default function AddDatasetForm({ onClose }) {
   const dispatch = useDispatch();
   const [name, setName] = useState("");
-  const [createdBy, setCreatedBy] = useState("Admin");
   const [file, setFile] = useState(null);
   const [size, setSize] = useState("");
   const [type, setType] = useState("");
+
+
+  const user = useSelector((state) => state.auth.user);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -18,7 +20,7 @@ export default function AddDatasetForm({ onClose }) {
       id: Date.now(),
       name,
       type,
-      createdBy,
+      createdBy: user?.name,
       createdAt: new Date().toISOString().split("T")[0],
       size,
       fileName: file.name
