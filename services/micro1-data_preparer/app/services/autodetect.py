@@ -1,6 +1,6 @@
 # app/services/autodetect.py
 import pandas as pd
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 def detect_metadata(df: pd.DataFrame) -> Dict[str, List[str]]:
@@ -67,7 +67,7 @@ def detect_metadata(df: pd.DataFrame) -> Dict[str, List[str]]:
     return metadata
 
 
-def metadata_to_pipeline_config(meta: Dict[str, List[str]]) -> Dict:
+def metadata_to_pipeline_config(meta: Dict[str, List[str]], target_column: Optional[str] = None) -> Dict:
     """
     Convert detected metadata into a pipeline configuration
 
@@ -75,8 +75,11 @@ def metadata_to_pipeline_config(meta: Dict[str, List[str]]) -> Dict:
     1. Drop ID columns (not useful for ML)
     2. Parse date columns
     3. Handle missing values
-    4. Encode categorical columns
-    5. Scale numeric columns
+    4. Encode categorical columns (EXCEPT target)
+    5. Scale numeric columns (EXCEPT target)
+    
+    Args:
+        target_column: Column to exclude from transformations
     """
 
     steps = []
@@ -99,33 +102,45 @@ def metadata_to_pipeline_config(meta: Dict[str, List[str]]) -> Dict:
     # Step 3: Handle missing values
     # Prefer imputation over dropping rows to avoid empty datasets.
     # Impute numeric columns with median and categorical with mode.
-    if meta.get("numeric_columns"):
+    numeric_for_imputation = [
+        col for col in meta.get("numeric_columns", [])
+        if col != target_column  # Exclude target
+    ]
+    if numeric_for_imputation:
         steps.append({
             "type": "handle_missing",
             "method": "fill_median",
-            "columns": meta.get("numeric_columns")
+            "columns": numeric_for_imputation
         })
 
-    if meta.get("categorical_columns"):
+    categorical_for_imputation = [
+        col for col in meta.get("categorical_columns", [])
+        if col != target_column  # Exclude target
+    ]
+    if categorical_for_imputation:
         steps.append({
             "type": "handle_missing",
             "method": "fill_mode",
-            "columns": meta.get("categorical_columns")
+            "columns": categorical_for_imputation
         })
 
-    # Step 4: Encode categorical columns
-    if meta.get("categorical_columns"):
+    # Step 4: Encode categorical columns (EXCEPT target)
+    categorical_to_encode = [
+        col for col in meta.get("categorical_columns", [])
+        if col != target_column  # Exclude target from encoding
+    ]
+    if categorical_to_encode:
         steps.append({
             "type": "encode_categorical",
             "method": "label",
-            "columns": meta["categorical_columns"]
+            "columns": categorical_to_encode
         })
 
-    # Step 5: Scale numeric columns
-    # Only scale columns that aren't IDs (already dropped) and aren't dates
+    # Step 5: Scale numeric columns (EXCEPT target)
+    # Only scale columns that aren't IDs (already dropped), aren't dates, and aren't target
     numeric_to_scale = [
         col for col in meta.get("numeric_columns", [])
-        if col not in meta.get("id_columns", [])
+        if col not in meta.get("id_columns", []) and col != target_column
     ]
 
     if numeric_to_scale:

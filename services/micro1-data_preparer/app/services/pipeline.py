@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from app.core.logger import logger
 
 
-def run_pipeline(df: pd.DataFrame, pipeline_conf: Optional[Dict] = None) -> pd.DataFrame:
+def run_pipeline(df: pd.DataFrame, pipeline_conf: Optional[Dict] = None, target_column: Optional[str] = None) -> pd.DataFrame:
     """
     Execute data preparation pipeline on DataFrame
 
@@ -12,6 +12,7 @@ def run_pipeline(df: pd.DataFrame, pipeline_conf: Optional[Dict] = None) -> pd.D
         df: Input DataFrame
         pipeline_conf: Pipeline configuration dict with 'steps' key.
                       If None, auto-generates a basic pipeline.
+        target_column: Name of target column to exclude from transformations
 
     Returns:
         Processed DataFrame
@@ -26,7 +27,7 @@ def run_pipeline(df: pd.DataFrame, pipeline_conf: Optional[Dict] = None) -> pd.D
     # Auto-generate pipeline if not provided
     if pipeline_conf is None:
         logger.info("No pipeline config provided, using automatic pipeline")
-        pipeline_conf = _auto_generate_pipeline(df)
+        pipeline_conf = _auto_generate_pipeline(df, target_column=target_column)
 
     if not isinstance(pipeline_conf, dict) or 'steps' not in pipeline_conf:
         raise ValueError("Pipeline config must be a dict with 'steps' key")
@@ -70,12 +71,12 @@ def run_pipeline(df: pd.DataFrame, pipeline_conf: Optional[Dict] = None) -> pd.D
     return processed
 
 
-def _auto_generate_pipeline(df: pd.DataFrame) -> Dict:
+def _auto_generate_pipeline(df: pd.DataFrame, target_column: Optional[str] = None) -> Dict:
     """Generate a basic automatic pipeline"""
     from app.services.autodetect import detect_metadata, metadata_to_pipeline_config
 
     meta = detect_metadata(df)
-    return metadata_to_pipeline_config(meta)
+    return metadata_to_pipeline_config(meta, target_column=target_column)
 
 
 def _drop_columns(df: pd.DataFrame, step: Dict) -> pd.DataFrame:

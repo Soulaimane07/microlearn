@@ -16,12 +16,16 @@ router = APIRouter()
 async def prepare(
         file: UploadFile = File(None),
         minio_object: Optional[str] = Form(None),
-        pipeline_yml: Optional[str] = Form(None)
+        pipeline_yml: Optional[str] = Form(None),
+        target_column: Optional[str] = Form(None)
 ):
     """
     Prepare the dataset. Provide either file OR minio_object.
     Optionally provide pipeline_yml (MinIO path), otherwise attempts to use
     'pipelines/<rawfilename>.yml' if minio_object is provided.
+    
+    Args:
+        target_column: Name of target column to exclude from transformations (scaling, encoding)
     """
 
     # 1) Load dataframe
@@ -137,9 +141,11 @@ async def prepare(
     # 3) Run pipeline
     try:
         logger.info(f"Running pipeline with config from: {pipeline_source}")
+        if target_column:
+            logger.info(f"Target column specified: {target_column} (will be excluded from transformations)")
         logger.debug(f"Pipeline config: {pipeline_conf}")
 
-        processed = run_pipeline(df, pipeline_conf)
+        processed = run_pipeline(df, pipeline_conf, target_column=target_column)
 
         if processed.empty:
             raise ValueError("Pipeline produced empty dataset")
@@ -172,10 +178,18 @@ async def prepare(
         logger.error(f"Failed to store processed CSV: {exc}")
         raise HTTPException(status_code=500, detail=f"Failed to store processed CSV: {str(exc)}")
 
-    return {
+    # Prepare response with metadata
+    response = {
         "message": "Processing completed successfully",
         "minio_object": out_name,
         "rows": len(processed),
         "columns": len(processed.columns),
         "pipeline_used": pipeline_source
     }
+    
+    # Add target column info if provided
+    if target_column:
+        response["target_column"] = target_column
+        response["feature_columns"] = [c for c in processed.columns if c != target_column]
+    
+    return response
