@@ -112,7 +112,7 @@ export default function AddDatasetForm({ onClose }) {
           type="submit"
           className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
         >
-          Add
+          Add dataset
         </button>
       </div>
     </form>

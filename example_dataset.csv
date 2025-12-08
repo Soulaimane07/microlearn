@@ -1,0 +1,8 @@
+user_id,signup_date,age,gender,country,salary,target
+1,2023-01-05,25,Male,USA,50000,1
+2,2023-02-10,30,Female,Canada,60000,0
+3,2023-03-15,22,Male,USA,45000,1
+4,2023-04-20,,Female,Mexico,52000,0
+5,2023-05-25,28,Male,Canada,58000,1
+6,2023-06-30,35,,USA,,0
+7,2023-07-05,40,Female,Mexico,62000,1
