@@ -37,7 +37,7 @@ pipeline {
                                         withSonarQubeEnv('SonarQube') {
                                             // Removed 'tool' dependency. Assumes 'sonar-scanner.bat' is in system PATH.
                                             bat "sonar-scanner.bat " +
-                                                "-Dsonar.projectKey=microlearn-data-preparer " +
+                                                "-Dsonar.projectKey=MicroLearn-Data-Preparer " +
                                                 "-Dsonar.projectName='MicroLearn-Data-Preparer' " +
                                                 "-Dsonar.sources=app " +
                                                 "-Dsonar.tests=tests " +
@@ -73,7 +73,7 @@ pipeline {
                                     script {
                                         withSonarQubeEnv('SonarQube') {
                                             bat "sonar-scanner.bat " +
-                                                "-Dsonar.projectKey=microlearn-model-selector " +
+                                                "-Dsonar.projectKey=MicroLearn-Model-Selector " +
                                                 "-Dsonar.projectName='MicroLearn-Model-Selector' " +
                                                 "-Dsonar.sources=app " +
                                                 "-Dsonar.tests=tests " +
@@ -109,7 +109,7 @@ pipeline {
                                     script {
                                         withSonarQubeEnv('SonarQube') {
                                             bat "sonar-scanner.bat " +
-                                                "-Dsonar.projectKey=microlearn-trainer " +
+                                                "-Dsonar.projectKey=MicroLearn-Trainer " +
                                                 "-Dsonar.projectName='MicroLearn-Trainer' " +
                                                 "-Dsonar.sources=app " +
                                                 "-Dsonar.tests=tests " +
