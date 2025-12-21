@@ -2,7 +2,7 @@
 # Training and ML
 torch
 pytorch-lightning
-ray[default]
+# ray[default] removed -> incompatible with Py3.13
 scikit-learn
 xgboost
 lightgbm
@@ -21,7 +21,8 @@ numpy
 
 # Storage
 minio==7.2.0
-psycopg2-binary==2.9.9
+# psycopg2-binary removed
+psycopg
 
 # Validation
 pydantic==2.5.2

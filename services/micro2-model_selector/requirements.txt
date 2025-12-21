@@ -16,7 +16,8 @@ lightgbm
 # pycaret==3.2.0
 
 # Database
-psycopg2-binary==2.9.9
+# psycopg2-binary removed invalid for Py3.13
+psycopg
 
 # Storage
 minio==7.2.9

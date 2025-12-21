@@ -24,7 +24,7 @@ pipeline {
                                     script {
                                         bat 'py -3.13 -m venv venv'
                                         bat 'venv\\Scripts\\activate.bat && pip install -r requirements.txt && pip install pytest pytest-cov httpx'
-                                        bat 'venv\\Scripts\\activate.bat && pytest --cov=app --cov-report=xml:coverage.xml'
+                                        bat 'venv\\Scripts\\activate.bat && set PYTHONPATH=. && pytest --cov=app --cov-report=xml:coverage.xml'
                                     }
                                 }
                             }
@@ -61,7 +61,7 @@ pipeline {
                                     script {
                                         bat 'py -3.13 -m venv venv'
                                         bat 'venv\\Scripts\\activate.bat && pip install -r requirements.txt && pip install pytest pytest-cov httpx'
-                                        bat 'venv\\Scripts\\activate.bat && pytest --cov=app --cov-report=xml:coverage.xml'
+                                        bat 'venv\\Scripts\\activate.bat && set PYTHONPATH=. && pytest --cov=app --cov-report=xml:coverage.xml'
                                     }
                                 }
                             }
@@ -97,7 +97,7 @@ pipeline {
                                     script {
                                         bat 'py -3.13 -m venv venv'
                                         bat 'venv\\Scripts\\activate.bat && pip install -r requirements.txt && pip install pytest pytest-cov httpx'
-                                        bat 'venv\\Scripts\\activate.bat && pytest --cov=app --cov-report=xml:coverage.xml'
+                                        bat 'venv\\Scripts\\activate.bat && set PYTHONPATH=. && pytest --cov=app --cov-report=xml:coverage.xml'
                                     }
                                 }
                             }
