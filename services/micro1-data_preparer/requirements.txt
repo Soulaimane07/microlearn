@@ -1,5 +1,5 @@
-# psycopg2-binary removed due to build failure on Py3.13
-psycopg
+# psycopg2-binary - unpinned to get latest with Py3.13 wheels
+psycopg2-binary
 pyyaml
 loguru
 # FastAPI and server

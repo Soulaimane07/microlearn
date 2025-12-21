@@ -23,8 +23,8 @@ numpy
 
 # Storage
 minio==7.2.0
-# psycopg2-binary removed
-psycopg
+# Storage - unpinned to get latest with Py3.13 wheels
+psycopg2-binary
 
 # Validation - unpinned for Py3.13 compatibility
 pydantic

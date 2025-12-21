@@ -17,9 +17,8 @@ lightgbm
 # PyCaret for AutoML capabilities (optional - removed due to heavy dependencies)
 # pycaret==3.2.0
 
-# Database
-# psycopg2-binary removed invalid for Py3.13
-psycopg
+# Database - unpinned to get latest with Py3.13 wheels
+psycopg2-binary
 
 # Storage
 minio==7.2.9
