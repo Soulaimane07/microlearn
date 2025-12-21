@@ -44,6 +44,7 @@ services:
       timeout: 5s
       retries: 5
 
+
   data-preparer:
     build:
       context: ./services/micro1-data_preparer
@@ -146,5 +147,6 @@ services:
 volumes:
   postgres_data:
   minio_data:
+
 
   # raw/example_dataset.csv

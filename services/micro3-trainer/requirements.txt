@@ -1,14 +1,14 @@
 # Trainer Microservice - Python Dependencies
 # Training and ML
-torch==2.1.2
-pytorch-lightning==2.1.3
-ray[default]==2.9.0
-scikit-learn==1.2.2
-xgboost==1.7.6
-lightgbm==4.0.0
+torch
+pytorch-lightning
+ray[default]
+scikit-learn
+xgboost
+lightgbm
 
 # MLflow for experiment tracking
-mlflow==2.10.0
+mlflow
 
 # FastAPI and web
 fastapi==0.104.1
@@ -16,8 +16,8 @@ uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 
 # Data handling
-pandas==2.0.3
-numpy==1.24.3
+pandas
+numpy
 
 # Storage
 minio==7.2.0
