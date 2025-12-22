@@ -23,9 +23,8 @@ async def prepare(
     Prepare the dataset. Provide either file OR minio_object.
     Optionally provide pipeline_yml (MinIO path), otherwise attempts to use
     'pipelines/<rawfilename>.yml' if minio_object is provided.
-    
-    Args:
-        target_column: Name of target column to exclude from transformations (scaling, encoding)
+
+    Returns cleaned data preview and metadata.
     """
 
     # 1) Load dataframe
@@ -39,10 +38,8 @@ async def prepare(
         )
 
     if file:
-        # Validate file type
         if not file.filename.endswith('.csv'):
             raise HTTPException(status_code=400, detail="Only CSV files are supported")
-
         try:
             raw = await file.read()
             if len(raw) == 0:
@@ -51,15 +48,8 @@ async def prepare(
             df = pd.read_csv(io.BytesIO(raw))
             if df.empty:
                 raise HTTPException(status_code=400, detail="CSV contains no data")
-
             original_filename = file.filename
             logger.info(f"Loaded CSV from upload: {original_filename} ({len(df)} rows)")
-
-        except pd.errors.EmptyDataError:
-            raise HTTPException(status_code=400, detail="CSV file is empty")
-        except pd.errors.ParserError as exc:
-            logger.error(f"Invalid CSV file uploaded: {exc}")
-            raise HTTPException(status_code=400, detail=f"Invalid CSV format: {str(exc)}")
         except Exception as exc:
             logger.error(f"Failed reading uploaded file: {exc}")
             raise HTTPException(status_code=400, detail=f"Failed to read CSV: {str(exc)}")
@@ -68,128 +58,73 @@ async def prepare(
         try:
             raw = download_bytes(minio_object)
             df = pd.read_csv(io.BytesIO(raw))
-
             if df.empty:
                 raise HTTPException(status_code=400, detail="CSV from MinIO contains no data")
-
-            # Extract filename from path (e.g., "raw/myfile.csv" -> "myfile.csv")
             original_filename = minio_object.split('/')[-1]
             logger.info(f"Loaded CSV from MinIO: {minio_object} ({len(df)} rows)")
-
-        except FileNotFoundError:
-            logger.error(f"MinIO object not found: {minio_object}")
-            raise HTTPException(status_code=404, detail=f"File not found in MinIO: {minio_object}")
-        except pd.errors.ParserError as exc:
-            logger.error(f"Invalid CSV from MinIO: {exc}")
-            raise HTTPException(status_code=400, detail=f"Invalid CSV format: {str(exc)}")
         except Exception as exc:
             logger.error(f"Failed to download CSV from MinIO: {exc}")
             raise HTTPException(status_code=400, detail=f"Cannot download file from MinIO: {str(exc)}")
     else:
         raise HTTPException(status_code=400, detail="Must provide either 'file' or 'minio_object'")
 
-    # 2) Determine pipeline YAML
+    # 2) Load pipeline YAML if provided or infer
     pipeline_conf = None
     pipeline_source = "default (auto-generated)"
-
     if pipeline_yml:
-        # Explicit pipeline provided
         try:
             yml_bytes = download_bytes(pipeline_yml)
             pipeline_conf = yaml.safe_load(yml_bytes)
-
-            if not isinstance(pipeline_conf, dict):
-                raise ValueError("Pipeline YAML must contain a dictionary")
-
             pipeline_source = pipeline_yml
-            logger.info(f"Loaded explicit pipeline config from: {pipeline_yml}")
-
-        except FileNotFoundError:
-            logger.error(f"Pipeline YAML not found: {pipeline_yml}")
-            raise HTTPException(status_code=404, detail=f"Pipeline YAML not found: {pipeline_yml}")
-        except yaml.YAMLError as exc:
-            logger.error(f"Invalid YAML in {pipeline_yml}: {exc}")
-            raise HTTPException(status_code=400, detail=f"Invalid YAML format: {str(exc)}")
         except Exception as exc:
-            logger.error(f"Failed to load pipeline YAML from {pipeline_yml}: {exc}")
+            logger.error(f"Failed to load pipeline YAML: {exc}")
             raise HTTPException(status_code=400, detail=f"Cannot load pipeline YAML: {str(exc)}")
     else:
-        # Attempt to infer pipeline from filename
         name_no_ext = original_filename.rsplit('.', 1)[0]
         guessed_path = f"pipelines/{name_no_ext}.yml"
-
         try:
             yml_bytes = download_bytes(guessed_path)
             pipeline_conf = yaml.safe_load(yml_bytes)
-
-            if not isinstance(pipeline_conf, dict):
-                raise ValueError("Pipeline YAML must contain a dictionary")
-
             pipeline_source = guessed_path
-            logger.info(f"Auto-loaded pipeline config from: {guessed_path}")
-
-        except FileNotFoundError:
-            logger.info(f"No pipeline YAML found at {guessed_path}, will use automatic pipeline")
-            pipeline_conf = None
-        except yaml.YAMLError as exc:
-            logger.warning(f"Invalid YAML in {guessed_path}, using automatic pipeline: {exc}")
-            pipeline_conf = None
-        except Exception as exc:
-            logger.warning(f"Failed to load {guessed_path}, using automatic pipeline: {exc}")
-            pipeline_conf = None
+        except Exception:
+            pipeline_conf = None  # fallback to automatic pipeline
 
     # 3) Run pipeline
     try:
-        logger.info(f"Running pipeline with config from: {pipeline_source}")
-        if target_column:
-            logger.info(f"Target column specified: {target_column} (will be excluded from transformations)")
-        logger.debug(f"Pipeline config: {pipeline_conf}")
-
         processed = run_pipeline(df, pipeline_conf, target_column=target_column)
-
         if processed.empty:
             raise ValueError("Pipeline produced empty dataset")
-
         logger.info(f"Pipeline completed: {len(processed)} rows, {len(processed.columns)} columns")
-
-    except ValueError as exc:
-        logger.error(f"Pipeline validation error: {exc}")
-        raise HTTPException(status_code=400, detail=str(exc))
-    except KeyError as exc:
-        logger.error(f"Pipeline configuration error - missing key: {exc}")
-        raise HTTPException(status_code=400, detail=f"Invalid pipeline config - missing: {str(exc)}")
     except Exception as exc:
-        logger.exception("Unexpected pipeline failure")
+        logger.error(f"Pipeline error: {exc}")
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(exc)}")
 
     # 4) Store processed CSV to MinIO
     try:
         processed_bytes = processed.to_csv(index=False).encode("utf-8")
-
-        # Create timestamped output name
         timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
         base_name = original_filename.rsplit('.', 1)[0]
         out_name = f"processed/{base_name}_processed_{timestamp}.csv"
-
         upload_bytes(out_name, processed_bytes)
         logger.info(f"Stored processed CSV: {out_name}")
-
     except Exception as exc:
         logger.error(f"Failed to store processed CSV: {exc}")
         raise HTTPException(status_code=500, detail=f"Failed to store processed CSV: {str(exc)}")
 
-    # Prepare response with metadata
+    # 5) Prepare preview data (first 10 rows) to send to frontend
+    preview_data = processed.head(10).to_dict(orient="records")
+
     response = {
         "message": "Processing completed successfully",
         "minio_object": out_name,
         "rows": len(processed),
         "columns": len(processed.columns),
-        "pipeline_used": pipeline_source
+        "pipeline_used": pipeline_source,
+        "cleaned_data": preview_data,  # frontend can preview first 10 rows
     }
-    
-    # Add target column info if provided
+
     if target_column:
         response["target_column"] = target_column
         response["feature_columns"] = [c for c in processed.columns if c != target_column]
-    
+
     return response
