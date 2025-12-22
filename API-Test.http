@@ -1,0 +1,32 @@
+### Execute a new pipeline
+POST http://localhost:3000/pipeline/execute
+Content-Type: application/json
+
+{
+  "name": "MyPipeline",
+  "steps": [
+    "DataPreparer",
+    "ModelSelector",
+    "Trainer",
+    "Evaluator",
+    "HyperOpt",
+    "Deployer"
+  ]
+}
+
+###
+
+### Get pipeline status
+GET http://localhost:3000/pipeline/status/8f44139a-d049-4998-b707-7833a1398c2a
+
+###
+
+### Update pipeline status
+POST http://localhost:3000/pipeline/step/update
+Content-Type: application/json
+
+{
+  "pipelineId": "8f44139a-d049-4998-b707-7833a1398c2a",
+  "stepName": "DataPreparer",
+  "status": "SUCCESS"
+}

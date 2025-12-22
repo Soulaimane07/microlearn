@@ -1,5 +1,27 @@
-
 services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  nats:
+    image: nats:2.9
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+
+  orchestrator:
+    build: ../services/micro7-orchestrator
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+      - nats
+    environment:
+      REDIS_HOST: redis
+      NATS_HOST: nats
+
+    
   postgres:
     image: postgres:16
     container_name: postgres
@@ -24,36 +46,115 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-  data-preparer:
-    build:
-      context: ./data-preparer
-    container_name: data-preparer
-    restart: always
-    depends_on:
-      - postgres
-      - minio
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: microlearn
-      DB_USER: postgres
-      DB_PASSWORD: postgres
 
-      MINIO_HOST: minio:9000
-      MINIO_ACCESS: minioadmin
-      MINIO_SECRET: minioadmin
-    ports:
-      - "8000:8000"
+  # data-preparer:
+  #   build:
+  #     context: ./services/micro1-data_preparer
+  #   container_name: data-preparer
+  #   restart: always
+  #   depends_on:
+  #     postgres:
+  #       condition: service_started
+  #     minio:
+  #       condition: service_healthy
+  #   environment:
+  #     # Database configuration
+  #     DB_HOST: postgres
+  #     DB_PORT: 5432
+  #     DB_NAME: microlearn
+  #     DB_USER: postgres
+  #     DB_PASSWORD: postgres
+      
+  #     # MinIO configuration - FIXED to match config.py
+  #     MINIO_ENDPOINT: minio:9000
+  #     MINIO_ROOT_USER: minioadmin
+  #     MINIO_ROOT_PASSWORD: minioadmin
+  #     MINIO_BUCKET: data-preparer
+  #     MINIO_SECURE: false
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./services/micro1-data_preparer:/app
 
-  nats:
-    image: nats:2.9
-    ports: ["4222:4222","8222:8222"]
+  # model-selector:
+  #   build:
+  #     context: ./services/micro2-model_selector
+  #   container_name: model-selector
+  #   restart: always
+  #   depends_on:
+  #     postgres:
+  #       condition: service_started
+  #     minio:
+  #       condition: service_healthy
+  #   environment:
+  #     # Database configuration
+  #     DB_HOST: postgres
+  #     DB_PORT: 5432
+  #     DB_NAME: microlearn
+  #     DB_USER: postgres
+  #     DB_PASSWORD: postgres
+      
+  #     # MinIO configuration
+  #     MINIO_ENDPOINT: minio:9000
+  #     MINIO_ROOT_USER: minioadmin
+  #     MINIO_ROOT_PASSWORD: minioadmin
+  #     MINIO_BUCKET: data-preparer
+  #     MINIO_SECURE: false
+      
+  #     # Service URLs
+  #     DATA_PREPARER_URL: http://data-preparer:8000
+  #   ports:
+  #     - "8001:8001"
+  #   volumes:
+  #     - ./services/micro2-model_selector:/app
 
-  redis:
-    image: redis:7
-    ports: ["6379:6379"]
+  # trainer:
+  #   build:
+  #     context: ./services/micro3-trainer
+  #   container_name: trainer
+  #   restart: always
+  #   depends_on:
+  #     postgres:
+  #       condition: service_started
+  #     minio:
+  #       condition: service_healthy
+  #   environment:
+  #     # Service Configuration
+  #     SERVICE_NAME: trainer
+  #     SERVICE_PORT: 8002
+      
+  #     # PostgreSQL Configuration
+  #     POSTGRES_HOST: postgres
+  #     POSTGRES_PORT: 5432
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: microlearn
+      
+  #     # MinIO Configuration
+  #     MINIO_ENDPOINT: minio:9000
+  #     MINIO_ACCESS_KEY: minioadmin
+  #     MINIO_SECRET_KEY: minioadmin
+  #     MINIO_SECURE: false
+  #     MINIO_BUCKET_MODELS: trained-models
+  #     MINIO_BUCKET_DATA: data-preparer
+      
+  #     # Service URLs
+  #     DATA_PREPARER_URL: http://data-preparer:8000
+  #     MODEL_SELECTOR_URL: http://model-selector:8001
+  #   ports:
+  #     - "8002:8002"
+  #   volumes:
+  #     - ./services/micro3-trainer:/app
 
 volumes:
   postgres_data:
   minio_data:
+
+
+  # raw/example_dataset.csv
