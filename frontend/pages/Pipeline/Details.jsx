@@ -29,7 +29,7 @@ function Details() {
 
   const renderStepComponent = (step) => {
     switch (step.name) {
-      case "DataPreparer": return <DataPreparer />;
+      case "DataPreparer": return <DataPreparer pipeline_id={pipelineId} />;
       case "ModelSelector": return <ModelSelector />;
       case "Trainer": return <Trainer />;
       case "Evaluator": return <Evaluator />;
@@ -47,7 +47,7 @@ function Details() {
           Status:{" "}
           <span className={`font-semibold ${
             pipeline.status === "RUNNING" ? "text-blue-500" :
-            pipeline.status === "DONE" ? "text-green-500" :
+            pipeline.status === "SUCCESS" ? "text-green-500" :
             "text-gray-500"
           }`}>
             {pipeline.status}
@@ -61,7 +61,7 @@ function Details() {
               {index < pipeline.steps.length && (
                 <div
                   className={`absolute top-3 mt-1.5 left-1/2 w-full h-1 z-0 transform -translate-x-1/2 ${
-                    step.status === "DONE" ? "bg-green-500" : "bg-gray-300"
+                    step.status === "SUCCESS" ? "bg-green-500" : step.status === "RUNNING" ? "bg-blue-500" : "bg-gray-300"
                   }`}
                 ></div>
               )}
@@ -74,7 +74,7 @@ function Details() {
                   repeat: step.status === "RUNNING" ? Infinity : 0,
                 }}
                 className={`relative z-10 mx-auto w-10 h-10 rounded-full flex items-center justify-center
-                  ${step.status === "DONE" ? "bg-green-500 text-white" :
+                  ${step.status === "SUCCESS" ? "bg-green-500 text-white" :
                     step.status === "RUNNING" ? "bg-blue-500 text-white" :
                     "bg-gray-300 text-gray-700"}
                 `}
@@ -91,7 +91,7 @@ function Details() {
       <div className="space-y-8">
         {pipeline.steps.map(
           (step) =>
-            (step.status === "RUNNING" || step.status === "DONE") && (
+            (step.status === "RUNNING") && (
               <motion.div
                 key={step.name}
                 initial={{ opacity: 0, y: 20 }}

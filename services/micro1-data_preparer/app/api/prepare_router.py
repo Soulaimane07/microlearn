@@ -5,6 +5,8 @@ import pandas as pd
 import io
 import yaml
 
+from app.messaging.nats_client import publish_step_done
+
 from app.services.pipeline import run_pipeline
 from app.storage.minio_client import upload_bytes, download_bytes
 from app.core.logger import logger
@@ -14,6 +16,7 @@ router = APIRouter()
 
 @router.post("")
 async def prepare(
+        pipeline_id: str = Form(...),          # ✅ ADD THIS
         file: UploadFile = File(None),
         minio_object: Optional[str] = Form(None),
         pipeline_yml: Optional[str] = Form(None),
@@ -127,4 +130,22 @@ async def prepare(
         response["target_column"] = target_column
         response["feature_columns"] = [c for c in processed.columns if c != target_column]
 
+
+
+    # 6) Notify orchestrator that DataPreparer succeeded
+    try:
+        await publish_step_done(
+            "DataPreparer",
+            {
+                "pipelineId": pipeline_id,   # MUST come from frontend
+                "step": "DataPreparer",
+                "status": "SUCCESS"
+            }
+        )
+        logger.info("📤 Published DataPreparer SUCCESS to orchestrator")
+    except Exception as exc:
+        logger.error(f"Failed to notify orchestrator: {exc}")
+
+
+    
     return response

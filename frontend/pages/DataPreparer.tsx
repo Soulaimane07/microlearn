@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { Upload, Play, Database, ChevronDown } from "lucide-react";
 
-export default function DataPreparer() {
+export default function DataPreparer({pipeline_id}) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [rawData, setRawData] = useState([]);
@@ -47,6 +47,7 @@ export default function DataPreparer() {
 
       // --- Step 2: Prepare ---
       const prepareForm = new FormData();
+      prepareForm.append("pipeline_id", pipeline_id)
       prepareForm.append("minio_object", detectRes.data.minio_object);
       prepareForm.append("pipeline_yml", detectRes.data.pipeline_yml);
       prepareForm.append("target_column", ""); // optional
