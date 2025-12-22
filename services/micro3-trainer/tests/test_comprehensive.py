@@ -17,20 +17,48 @@ client = TestClient(app)
 
 
 def is_external_service_available(host: str, port: int, timeout: float = 1.0) -> bool:
-    """Check if an external service is reachable."""
+    """Check if an external service is reachable via socket."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
         result = sock.connect_ex((host, port))
         sock.close()
         return result == 0
-    except (socket.gaierror, socket.error):
+    except Exception:
+        # Catch all exceptions including socket.gaierror for hostname resolution failures
+        return False
+
+
+def is_postgres_available() -> bool:
+    """Check if PostgreSQL is available by attempting a real connection."""
+    try:
+        import psycopg2
+        # Try to connect to PostgreSQL with a short timeout
+        for host in ["postgres", "localhost"]:
+            try:
+                conn = psycopg2.connect(
+                    host=host,
+                    port=5432,
+                    user="postgres",
+                    password="postgres",
+                    dbname="microlearn",
+                    connect_timeout=2
+                )
+                conn.close()
+                return True
+            except Exception:
+                continue
+        return False
+    except ImportError:
+        return False
+    except Exception:
         return False
 
 
 # Check if external services are available at module load time
 MINIO_AVAILABLE = is_external_service_available("minio", 9000) or is_external_service_available("localhost", 9000)
-POSTGRES_AVAILABLE = is_external_service_available("postgres", 5432) or is_external_service_available("localhost", 5432)
+# Use actual PostgreSQL connection test for more reliable detection
+POSTGRES_AVAILABLE = is_postgres_available()
 
 # Skip markers for tests requiring external services
 requires_minio = pytest.mark.skipif(not MINIO_AVAILABLE, reason="MinIO service not available")
