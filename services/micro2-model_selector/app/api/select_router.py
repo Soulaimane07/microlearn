@@ -9,6 +9,8 @@ from typing import Optional, List
 import pandas as pd
 import io
 
+from app.services.publisher import publish_step_done
+
 from app.services.model_selector import ModelSelectorService
 from app.services.dataset_analyzer import DatasetAnalyzer
 from app.models.request_models import SelectionRequest
@@ -27,7 +29,8 @@ async def select_models(
     metric: str = Query("accuracy", description="Primary metric for model selection (accuracy, f1, rmse, mae, r2)"),
     task_type: Optional[str] = Query(None, description="Task type: classification, regression, clustering (auto-detected if not provided)"),
     max_models: int = Query(5, description="Maximum number of model candidates to return", ge=1, le=20),
-    include_deep_learning: bool = Query(False, description="Include deep learning models (CNN, etc.)")
+    include_deep_learning: bool = Query(False, description="Include deep learning models (CNN, etc.)"),
+    pipeline_id: Optional[str] = Query(None, description="Pipeline ID from frontend")
 ):
     """
     Select appropriate ML models based on dataset characteristics.
@@ -72,15 +75,30 @@ async def select_models(
     analysis = analyzer.analyze(df, task_type)
     logger.info(f"Dataset analysis complete: task_type={analysis['task_type']}, target={analysis.get('target_column')}")
     
-    # Select models based on analysis
+    # Select models
     candidates = selector_service.select_models(
         analysis=analysis,
         metric=metric,
         max_models=max_models,
         include_deep_learning=include_deep_learning
     )
-    
-    logger.info(f"Selected {len(candidates)} model candidates")
+
+    # Notify orchestrator that ModelSelector step succeeded
+    if pipeline_id:
+        try:
+            await publish_step_done(
+                "ModelSelector",
+                {
+                    "pipelineId": pipeline_id,
+                    "step": "ModelSelector",
+                    "status": "SUCCESS",
+                    "topRecommendation": candidates[0].model_name if candidates else None
+                }
+            )
+            logger.info("📤 Published ModelSelector SUCCESS to orchestrator")
+        except Exception as exc:
+            logger.error(f"Failed to notify orchestrator: {exc}")
+
     
     return SelectionResponse(
         dataset_analysis=analysis,
@@ -108,7 +126,7 @@ async def select_models_with_upload(
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
     
-    try:
+    try:    
         raw = await file.read()
         df = pd.read_csv(io.BytesIO(raw))
         
@@ -128,7 +146,7 @@ async def select_models_with_upload(
     
     # Select models
     candidates = selector_service.select_models(
-        analysis=analysis,
+            analysis=analysis,
         metric=metric,
         max_models=max_models,
         include_deep_learning=include_deep_learning

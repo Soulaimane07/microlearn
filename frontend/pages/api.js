@@ -1,6 +1,6 @@
 export async function getModelCandidates(pipelineId, dataset, targetColumn, allowedCategories = []) {
   const query = new URLSearchParams({
-    pipelineId,
+    pipeline_id: pipelineId,
     minio_object: dataset,
     task_type: "classification",
     metric: "accuracy",
