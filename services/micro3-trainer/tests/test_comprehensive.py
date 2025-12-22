@@ -7,12 +7,38 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+import socket
 
 from app.main import app
 from app.services.model_factory import ModelFactory
 from app.models.response_models import JobStatus
 
 client = TestClient(app)
+
+
+def is_external_service_available(host: str, port: int, timeout: float = 1.0) -> bool:
+    """Check if an external service is reachable."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return result == 0
+    except (socket.gaierror, socket.error):
+        return False
+
+
+# Check if external services are available at module load time
+MINIO_AVAILABLE = is_external_service_available("minio", 9000) or is_external_service_available("localhost", 9000)
+POSTGRES_AVAILABLE = is_external_service_available("postgres", 5432) or is_external_service_available("localhost", 5432)
+
+# Skip markers for tests requiring external services
+requires_minio = pytest.mark.skipif(not MINIO_AVAILABLE, reason="MinIO service not available")
+requires_postgres = pytest.mark.skipif(not POSTGRES_AVAILABLE, reason="PostgreSQL service not available")
+requires_external_services = pytest.mark.skipif(
+    not (MINIO_AVAILABLE and POSTGRES_AVAILABLE),
+    reason="External services (MinIO/PostgreSQL) not available"
+)
 
 
 class TestHealthEndpoints:
@@ -155,32 +181,38 @@ class TestModelFactory:
 class TestTrainingEndpoints:
     """Tests for training endpoints"""
     
+    @requires_external_services
     def test_list_jobs_empty(self):
         """Test listing jobs when empty"""
         response = client.get("/train")
         # May return 200 or 500 if DB not initialized
         assert response.status_code in [200, 500]
     
+    @requires_external_services
     def test_list_jobs_with_status_filter(self):
         """Test listing jobs with status filter"""
         response = client.get("/train?status=running")
         assert response.status_code in [200, 500]
     
+    @requires_external_services
     def test_list_jobs_with_limit(self):
         """Test listing jobs with limit"""
         response = client.get("/train?limit=5")
         assert response.status_code in [200, 500]
     
+    @requires_external_services
     def test_get_nonexistent_job(self):
         """Test getting non-existent job"""
         response = client.get("/train/nonexistent_job_123")
         assert response.status_code in [404, 500]
     
+    @requires_external_services
     def test_get_job_progress_nonexistent(self):
         """Test getting progress of non-existent job"""
         response = client.get("/train/nonexistent_job_123/progress")
         assert response.status_code in [404, 500]
     
+    @requires_external_services
     def test_cancel_nonexistent_job(self):
         """Test canceling non-existent job"""
         response = client.delete("/train/nonexistent_job_123")
@@ -218,21 +250,25 @@ class TestTrainingEndpoints:
 class TestModelsEndpoints:
     """Tests for models endpoints"""
     
+    @requires_postgres
     def test_list_models(self):
         """Test listing trained models"""
         response = client.get("/models/")
         assert response.status_code in [200, 500]
     
+    @requires_postgres
     def test_get_nonexistent_model(self):
         """Test getting non-existent model"""
         response = client.get("/models/nonexistent_job_123")
         assert response.status_code in [404, 500]
     
+    @requires_postgres
     def test_download_nonexistent_model(self):
         """Test downloading non-existent model"""
         response = client.get("/models/nonexistent_job_123/download")
         assert response.status_code in [404, 500]
     
+    @requires_postgres
     def test_delete_nonexistent_model(self):
         """Test deleting non-existent model"""
         response = client.delete("/models/nonexistent_job_123")
@@ -313,12 +349,14 @@ class TestMLflowTracker:
 class TestEdgeCases:
     """Tests for edge cases"""
     
+    @requires_external_services
     def test_very_long_job_id(self):
         """Test with very long job ID"""
         long_id = "a" * 1000
         response = client.get(f"/train/{long_id}")
         assert response.status_code in [404, 500]
     
+    @requires_external_services
     def test_special_characters_in_job_id(self):
         """Test with special characters in job ID"""
         response = client.get("/train/test%20job%20id")
