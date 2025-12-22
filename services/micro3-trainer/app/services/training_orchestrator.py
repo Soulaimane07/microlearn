@@ -344,10 +344,12 @@ class TrainingOrchestrator:
         if not job:
             return None
         
-        # Calculate progress percentage
+        # Calculate progress percentage (with null-safe access)
         progress = 0.0
-        if job['total_epochs'] > 0 and job['current_epoch']:
-            progress = (job['current_epoch'] / job['total_epochs']) * 100
+        current_epoch = job.get('current_epoch') or 0
+        total_epochs = job.get('total_epochs') or 1  # Prevent division by zero
+        if total_epochs > 0 and current_epoch > 0:
+            progress = (current_epoch / total_epochs) * 100
         
         return TrainingJobResponse(
             job_id=job['job_id'],
@@ -368,6 +370,23 @@ class TrainingOrchestrator:
             error_message=job.get('error_message')
         )
     
+    def _calculate_progress(self, current_epoch: Optional[int], total_epochs: Optional[int]) -> float:
+        """
+        Calculate progress percentage with null-safe access.
+        
+        Args:
+            current_epoch: Current epoch number (may be None)
+            total_epochs: Total epochs (may be None)
+            
+        Returns:
+            Progress percentage (0.0-100.0)
+        """
+        current = current_epoch or 0
+        total = total_epochs or 1  # Prevent division by zero
+        if total > 0 and current > 0:
+            return (current / total) * 100
+        return 0.0
+    
     def list_jobs(self, status: Optional[str] = None, limit: int = 10) -> list:
         """List training jobs"""
         jobs = self.postgres.list_jobs(status=status, limit=limit)
@@ -382,8 +401,8 @@ class TrainingOrchestrator:
                 started_at=job.get('started_at'),
                 completed_at=job.get('completed_at'),
                 current_epoch=job.get('current_epoch'),
-                total_epochs=job['total_epochs'],
-                progress_percentage=(job.get('current_epoch', 0) / job['total_epochs'] * 100) if job['total_epochs'] > 0 else 0,
+                total_epochs=job.get('total_epochs') or 0,
+                progress_percentage=self._calculate_progress(job.get('current_epoch'), job.get('total_epochs')),
                 gpu_allocated=job.get('gpu_allocated'),
                 mlflow_run_id=job.get('mlflow_run_id'),
                 best_metrics=job.get('best_metrics'),
