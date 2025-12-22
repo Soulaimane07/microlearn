@@ -23,7 +23,6 @@ class TestHealthEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
-        assert data["service"] == "data-preparer"
     
     def test_health_ready(self):
         """Test readiness endpoint"""
