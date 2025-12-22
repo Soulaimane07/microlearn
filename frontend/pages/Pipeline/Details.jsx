@@ -15,6 +15,8 @@ function Details() {
   const dispatch = useDispatch();
   const { pipeline, status, error } = useSelector((state) => state.pipeline);
 
+  const targetColumn = "churn";
+
   useEffect(() => {
     dispatch(fetchPipeline(pipelineId));
 
@@ -27,10 +29,13 @@ function Details() {
 
   if (!pipeline) return null;
 
+  
+  
+
   const renderStepComponent = (step) => {
     switch (step.name) {
       case "DataPreparer": return <DataPreparer pipeline_id={pipelineId} />;
-      case "ModelSelector": return <ModelSelector />;
+      case "ModelSelector": return <ModelSelector pipelineId={pipelineId} targetColumn={targetColumn}/>;
       case "Trainer": return <Trainer />;
       case "Evaluator": return <Evaluator />;
       case "HyperOpt": return <HyperOpt />;
@@ -38,6 +43,9 @@ function Details() {
       default: return null;
     }
   };
+
+
+  
 
   return (
     <div className="max-w-7xl mx-auto p-6 bg-white shadow-xl rounded-xl mt-10">

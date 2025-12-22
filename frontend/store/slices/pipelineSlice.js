@@ -15,6 +15,7 @@ const pipelineSlice = createSlice({
   name: "pipeline",
   initialState: {
     pipeline: null,
+    processed: null,
     status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
     error: null,
   },
@@ -24,6 +25,9 @@ const pipelineSlice = createSlice({
       state.status = "idle";
       state.error = null;
     },
+    setProcessedData: (state, action) => {
+      state.processed = action.payload;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -41,5 +45,5 @@ const pipelineSlice = createSlice({
   },
 });
 
-export const { resetPipeline } = pipelineSlice.actions;
+export const { resetPipeline, setProcessedData } = pipelineSlice.actions;
 export default pipelineSlice.reducer;

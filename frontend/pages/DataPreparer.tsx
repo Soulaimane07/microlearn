@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { Upload, Play, Database, ChevronDown } from "lucide-react";
+import { useDispatch } from "react-redux";
+import { setProcessedData } from "../store/slices/pipelineSlice";
 
 export default function DataPreparer({pipeline_id}) {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -12,6 +14,8 @@ export default function DataPreparer({pipeline_id}) {
   const [metadata, setMetadata] = useState(null);
 
   const handleFileChange = (e) => setFile(e.target.files[0]);
+
+  const dispatch = useDispatch();
 
   const handleRun = async () => {
     if (!file) return alert("Please select a CSV file first!");
@@ -58,6 +62,9 @@ export default function DataPreparer({pipeline_id}) {
       });
 
       setCleanedData(prepareRes.data.cleaned_data || []);
+
+      dispatch(setProcessedData(prepareRes.data.minio_object))
+      
       setLogs((prev) => [...prev, "[SUCCESS] Data preprocessing complete!"]);
       setShowPreview(true);
     } catch (err) {
