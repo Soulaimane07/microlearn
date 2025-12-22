@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Zap, Play, ChevronDown } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 
-export function Trainer() {
+export default function Trainer() {
   const [isTraining, setIsTraining] = useState(false);
   const [progress, setProgress] = useState(0);
 

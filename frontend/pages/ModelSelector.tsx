@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Play, Trophy, ChevronDown } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export function ModelSelector() {
+export default function ModelSelector() {
   const [showResults, setShowResults] = useState(false);
 
   const algorithms = [

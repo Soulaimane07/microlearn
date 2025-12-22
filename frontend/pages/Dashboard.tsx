@@ -3,9 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { PipelineFlow } from '../components/PipelineFlow';
 import { MetricCard } from '../components/MetricCard';
 import { StatusBadge } from '../components/StatusBadge';
-import { Database, Brain, Activity, Play, Clock, FileText } from 'lucide-react';
+import { Database, Brain, Activity, Play, Clock, FileText, Star } from 'lucide-react';
+import StartPipeline from '../components/StartPipeline/StartPipeline';
 
 export function Dashboard() {
+
+  const [openRunPipelineModal, setOpenRunPipelineModal] = React.useState(false);
+
   const navigate = useNavigate();
 
   const recentTasks = [
@@ -35,7 +39,7 @@ export function Dashboard() {
           <h1 className="text-gray-900 mb-2">Welcome to MicroLearn</h1>
           <p className="text-gray-500">Orchestrate your machine learning pipelines with ease</p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm">
+        <button onClick={()=> setOpenRunPipelineModal(true)} className="flex items-center gap-2 px-6 py-3 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm">
           <Play className="w-4 h-4" />
           Start New Pipeline
         </button>
@@ -160,6 +164,9 @@ export function Dashboard() {
           ))}
         </div>
       </div>
+
+
+      {openRunPipelineModal && <StartPipeline setOpenRunPipelineModal={setOpenRunPipelineModal} />}
     </div>
   );
 }

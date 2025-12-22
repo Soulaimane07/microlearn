@@ -2,7 +2,7 @@ import React from 'react';
 import { BarChart3, Download, ChevronDown } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-export function Evaluator() {
+export default function Evaluator() {
   const rocData = [
     { fpr: 0, tpr: 0 },
     { fpr: 0.1, tpr: 0.75 },

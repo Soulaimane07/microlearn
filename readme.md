@@ -32,3 +32,23 @@ Azure devops: https://dev.azure.com/SoulaimaneOuhmida/MicroLearn
 cd infrastracture 
 docker-compose up -d
 ```
+
+## Micro7 - Orchestrator
+```
+cd services/micro7-orchestrator
+npm start
+```
+
+## Micro1 - Data_preparer
+```
+cd services/micro1-data_preparer
+venv\Scripts\activate     
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## Micro2 - Model_selector
+```
+cd services/micro2-model_selector
+venv\Scripts\activate     
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+```

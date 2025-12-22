@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Rocket, Play, CheckCircle2, Copy } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 
-export function Deployer() {
+export default function Deployer() {
   const [deployed, setDeployed] = useState(false);
   const [deploymentTarget, setDeploymentTarget] = useState('local');
 
