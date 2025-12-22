@@ -1,0 +1,42 @@
+@startuml Micro2_ModelSelector_UseCase_Diagram
+title Diagramme de Cas d'Utilisation - Sélecteur de Modèles (Micro2)
+
+left to right direction
+skinparam packageStyle rectangle
+
+' Définition des acteurs
+actor "Data Scientist" as DS #lightblue
+actor "Utilisateur\nBusiness" as UB #lightgreen
+actor "Orchestrateur\n(Micro7)" as ORC #orange
+
+' Package du système
+rectangle "Service de Sélection de Modèles (Micro2 - ModelSelector)" {
+  
+  ' Cas d'utilisation principaux
+  usecase "Sélectionner Modèles\nML Adaptés" as UC1 #lightblue
+  usecase "Consulter Catalogue\nde Modèles" as UC2 #lightcyan
+  usecase "Analyser Dataset" as UC3 #lightblue
+}
+
+' Relations Acteurs -> Use Cases
+DS --> UC1
+DS --> UC2
+DS --> UC3
+
+UB --> UC1
+
+ORC --> UC1
+
+' Relations Include
+UC1 ..> UC3 : <<include>>
+
+' Notes explicatives
+note right of UC1
+  Sélection automatique
+  des meilleurs modèles ML
+  selon le dataset
+end note
+
+
+
+@enduml

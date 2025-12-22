@@ -40,6 +40,7 @@ def run_pipeline_auto(df: pd.DataFrame, pipeline_cfg: Dict) -> pd.DataFrame:
     date_cols = _safe_get(pipeline_cfg.get("date_columns", []), df)
     numeric_cols = _safe_get(pipeline_cfg.get("numeric_columns", []), df)
     categorical_cols = _safe_get(pipeline_cfg.get("categorical_columns", []), df)
+    target_column = pipeline_cfg.get("target_column")
 
     logger.info(f"PipelineAuto: drop ids {id_cols}")
     df = df.drop(columns=id_cols, errors="ignore")
@@ -89,11 +90,14 @@ def run_pipeline_auto(df: pd.DataFrame, pipeline_cfg: Dict) -> pd.DataFrame:
         scaling = "standard"
     if scaling and numeric_cols:
         try:
-            if scaling == "standard":
-                scaler = StandardScaler()
-                df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
-            else:
-                logger.info(f"Unknown scaling '{scaling}' - skipping")
+            # Exclude target column from scaling
+            cols_to_scale = [c for c in numeric_cols if c != target_column]
+            if cols_to_scale:
+                if scaling == "standard":
+                    scaler = StandardScaler()
+                    df[cols_to_scale] = scaler.fit_transform(df[cols_to_scale])
+                else:
+                    logger.info(f"Unknown scaling '{scaling}' - skipping")
         except Exception as exc:
             logger.warning(f"Scaling failed: {exc}")
 

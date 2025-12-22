@@ -1,0 +1,79 @@
+@startuml Micro2_ModelSelector_Class_Diagram
+title Diagramme de Classes - Sélecteur de Modèles (Micro2)
+
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor<<API>> LightBlue
+    BackgroundColor<<Service>> LightGreen
+    BackgroundColor<<Storage>> LightYellow
+    BackgroundColor<<Model>> LightPink
+}
+
+' ============= REQUEST MODELS =============
+class SelectionRequest <<Model>> {
+    - minio_object: str
+    - metric: str
+    - task_type: str
+    - max_models: int
+}
+
+' ============= RESPONSE MODELS =============
+class ModelCandidate <<Model>> {
+    - model_id: str
+    - model_name: str
+    - compatibility_score: float
+    - ranking: int
+}
+
+class SelectionResponse <<Model>> {
+    - candidates: List[ModelCandidate]
+    - top_recommendation: str
+}
+
+' ============= SERVICES =============
+class ModelSelectorService <<Service>> {
+    + select_models(analysis: Dict): List[ModelCandidate]
+}
+
+class ModelCatalog <<Service>> {
+    + list_models(task_type: str): List[Dict]
+    + get_model(model_id: str): Dict
+}
+
+class DatasetAnalyzer <<Service>> {
+    + analyze(df: DataFrame): Dict
+}
+
+' ============= STORAGE =============
+class MinIOClient <<Storage>> {
+    + download_dataset(object_name: str): bytes
+}
+
+class PostgresClient <<Storage>> {
+    + save_selection(selection_data: Dict): void
+}
+
+' ============= API ROUTERS =============
+class SelectRouter <<API>> {
+    + select_models(request: SelectionRequest): SelectionResponse
+}
+
+' ============= RELATIONS =============
+
+ModelSelectorService *-- ModelCatalog
+ModelSelectorService *-- DatasetAnalyzer
+SelectRouter *-- ModelSelectorService
+SelectRouter *-- MinIOClient
+SelectRouter *-- PostgresClient
+
+SelectRouter --> SelectionRequest
+SelectRouter --> SelectionResponse
+SelectionResponse *-- ModelCandidate
+
+' Notes explicatives
+note top of ModelSelectorService
+    Service de sélection
+    automatique de modèles ML
+end note
+
+@enduml

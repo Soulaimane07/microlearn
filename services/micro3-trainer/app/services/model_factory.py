@@ -80,9 +80,20 @@ class ModelFactory:
             params.setdefault('use_label_encoder', False)
             params.setdefault('eval_metric', 'logloss')
         
-        # Special handling for LightGBM
+        # Special handling for LightGBM - add regularization to prevent overfitting
         if 'lightgbm' in model_id:
             params.setdefault('verbosity', -1)
+            # Regularization parameters
+            params.setdefault('max_depth', 6)  # Limit tree depth
+            params.setdefault('num_leaves', 31)  # Limit leaves
+            params.setdefault('min_child_samples', 20)  # Minimum samples per leaf
+            params.setdefault('min_child_weight', 0.001)  # Minimum sum of instance weight
+            params.setdefault('subsample', 0.8)  # Row sampling ratio
+            params.setdefault('colsample_bytree', 0.8)  # Column sampling ratio
+            params.setdefault('reg_alpha', 0.1)  # L1 regularization
+            params.setdefault('reg_lambda', 0.1)  # L2 regularization
+            params.setdefault('learning_rate', 0.05)  # Lower learning rate
+            params.setdefault('n_estimators', 200)  # More trees with lower LR
         
         # Instantiate model
         try:

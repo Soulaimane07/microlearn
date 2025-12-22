@@ -262,10 +262,35 @@ class TrainingOrchestrator:
         """
         from sklearn.model_selection import train_test_split
         
-        # Split data
-        X_train, X_val, y_train, y_val = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
+        # Determine optimal split ratio based on dataset size
+        n_samples = len(X)
+        if n_samples < 50:
+            test_size = 0.3  # Use 30% for validation in small datasets
+            logger.warning(f"⚠️  SMALL DATASET: {n_samples} samples - Using 30% validation split")
+            logger.warning(f"⚠️  Risk of overfitting is HIGH - Consider using more data (>100 samples recommended)")
+        elif n_samples < 100:
+            test_size = 0.25
+            logger.warning(f"⚠️  Small dataset: {n_samples} samples - Results may not generalize well")
+        else:
+            test_size = 0.2
+        
+        # Split data with stratification for classification
+        if request.task_type.value == 'classification':
+            try:
+                # Use stratified split to maintain class distribution
+                X_train, X_val, y_train, y_val = train_test_split(
+                    X, y, test_size=test_size, random_state=42, stratify=y
+                )
+            except ValueError as e:
+                # Fallback if stratification fails (too few samples per class)
+                logger.warning(f"Stratification failed: {e} - Using random split")
+                X_train, X_val, y_train, y_val = train_test_split(
+                    X, y, test_size=test_size, random_state=42
+                )
+        else:
+            X_train, X_val, y_train, y_val = train_test_split(
+                X, y, test_size=test_size, random_state=42
+            )
         
         logger.info(f"Training set: {len(X_train)}, Validation set: {len(X_val)}")
         
@@ -284,12 +309,23 @@ class TrainingOrchestrator:
                 train_acc = accuracy_score(y_train, train_pred)
                 val_acc = accuracy_score(y_val, val_pred)
                 
+                # Calculate overfitting metrics
+                overfitting_gap = train_acc - val_acc
+                
                 metrics = {
                     'train_accuracy': float(train_acc),
-                    'val_accuracy': float(val_acc)
+                    'val_accuracy': float(val_acc),
+                    'overfitting_gap': float(overfitting_gap)
                 }
                 
                 logger.info(f"Training accuracy: {train_acc:.4f}, Validation accuracy: {val_acc:.4f}")
+                
+                # Warn about overfitting
+                if overfitting_gap > 0.15:
+                    logger.warning(f"⚠️  HIGH OVERFITTING DETECTED: Gap = {overfitting_gap:.2%}")
+                    logger.warning(f"⚠️  Recommendations: 1) Add more data, 2) Add regularization, 3) Reduce model complexity")
+                elif overfitting_gap > 0.10:
+                    logger.warning(f"⚠️  Moderate overfitting: Gap = {overfitting_gap:.2%}")
             
             else:  # regression
                 train_pred = model.predict(X_train)
