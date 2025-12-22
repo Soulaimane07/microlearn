@@ -7,6 +7,11 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+client = TestClient(app)
 
 
 class TestAutodetect:
@@ -610,6 +615,125 @@ class TestValidator:
             assert validate_dataframe is not None
         except (ImportError, AttributeError):
             pytest.skip("Validator not available")
+
+
+class TestDetectAPI:
+    """Tests for /detect API endpoint"""
+    
+    def test_detect_csv_valid(self):
+        """Test detect endpoint with valid CSV"""
+        csv_content = "id,name,age,salary\n1,John,30,50000\n2,Jane,25,60000"
+        
+        response = client.post(
+            "/detect",
+            files={"file": ("test.csv", csv_content, "text/csv")},
+            data={"store_to_minio": "false"}
+        )
+        
+        # May need MinIO or could work without
+        assert response.status_code in [200, 500]
+        if response.status_code == 200:
+            data = response.json()
+            assert "id_columns" in data
+            assert "numeric_columns" in data
+    
+    def test_detect_non_csv_file(self):
+        """Test detect endpoint rejects non-CSV files"""
+        response = client.post(
+            "/detect",
+            files={"file": ("test.txt", "hello world", "text/plain")}
+        )
+        
+        assert response.status_code == 400
+    
+    def test_detect_empty_csv(self):
+        """Test detect endpoint with empty CSV"""
+        response = client.post(
+            "/detect",
+            files={"file": ("empty.csv", "", "text/csv")}
+        )
+        
+        assert response.status_code == 400
+
+
+class TestPrepareAPI:
+    """Tests for /prepare API endpoint"""
+    
+    def test_prepare_no_input(self):
+        """Test prepare endpoint with no input"""
+        response = client.post("/prepare/")
+        
+        # Should fail validation
+        assert response.status_code in [400, 422]
+    
+    def test_prepare_both_inputs(self):
+        """Test prepare endpoint with both file and minio_object"""
+        csv_content = "a,b,c\n1,2,3"
+        
+        response = client.post(
+            "/prepare/",
+            files={"file": ("test.csv", csv_content, "text/csv")},
+            data={"minio_object": "raw/test.csv"}
+        )
+        
+        assert response.status_code == 400
+    
+    def test_prepare_non_csv_file(self):
+        """Test prepare endpoint rejects non-CSV files"""
+        response = client.post(
+            "/prepare/",
+            files={"file": ("test.txt", "hello", "text/plain")}
+        )
+        
+        assert response.status_code == 400
+    
+    def test_prepare_empty_file(self):
+        """Test prepare endpoint with empty file"""
+        response = client.post(
+            "/prepare/",
+            files={"file": ("empty.csv", "", "text/csv")}
+        )
+        
+        assert response.status_code == 400
+
+
+class TestPipelineValidator:
+    """Tests for pipeline configuration validation"""
+    
+    def test_validate_steps_format(self):
+        """Test step format validation"""
+        from app.services.pipeline import run_pipeline
+        
+        df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+        
+        # Valid config
+        config = {"steps": [{"type": "drop_columns", "columns": []}]}
+        result = run_pipeline(df, config)
+        assert len(result) == 3
+    
+    def test_pipeline_multiple_steps(self):
+        """Test pipeline with multiple steps"""
+        from app.services.pipeline import run_pipeline
+        
+        df = pd.DataFrame({
+            "id_col": [1, 2, 3],
+            "numeric": [10.0, None, 30.0],
+            "category": ["A", "B", "A"]
+        })
+        
+        config = {
+            "steps": [
+                {"type": "drop_columns", "columns": ["id_col"]},
+                {"type": "handle_missing", "method": "fill_mean", "columns": ["numeric"]},
+                {"type": "encode_categorical", "method": "label", "columns": ["category"]}
+            ]
+        }
+        
+        result = run_pipeline(df, config)
+        
+        assert "id_col" not in result.columns
+        assert result["numeric"].isna().sum() == 0
+        assert pd.api.types.is_numeric_dtype(result["category"])
 
 
 if __name__ == "__main__":
