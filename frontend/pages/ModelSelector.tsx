@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Search, Play, Trophy, ChevronDown } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getModelCandidates } from './api';
-import { useSelector } from 'react-redux';
-
+import { useDispatch, useSelector } from 'react-redux';
+import { storemodelselection } from "../store/slices/pipelineSlice";  
 
 export default function ModelSelector({ pipelineId, targetColumn }) {
-  const dataset = useSelector((state) => state.pipeline?.processed);
+  const dataset = useSelector((state) => state.pipeline?.datapreparer?.minio_object);
   
   const [algorithms, setAlgorithms] = useState([
     { id: 'rf', name: 'RandomForest', selected: true },
@@ -19,6 +19,7 @@ export default function ModelSelector({ pipelineId, targetColumn }) {
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
   
+  const dispatch = useDispatch();
 
 
   const runModelSelection = async () => {
@@ -28,6 +29,7 @@ export default function ModelSelector({ pipelineId, targetColumn }) {
       const data = await getModelCandidates(pipelineId, dataset, targetColumn, selectedCategories);
       console.log(data);
       
+      dispatch(storemodelselection(data));
       setResults(data.candidates || []);
       setShowResults(true);
     } catch (err) {

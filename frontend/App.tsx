@@ -12,10 +12,15 @@ import { Signup } from './pages/Signup';
 import { Profile } from './pages/Profile';
 import  Details  from './pages/Pipeline/Details';
 import Evaluator from './pages/Evaluator';
+import { useSelector } from 'react-redux';
 
 function AppContent() {
   const location = useLocation();
   const isAuthPage = ['/login', '/signup'].includes(location.pathname);
+
+  const pipeline = useSelector((state) => state.pipeline);
+  console.log(pipeline);
+  
 
   return (
     <div className="min-h-screen bg-[#F5F6FA]">

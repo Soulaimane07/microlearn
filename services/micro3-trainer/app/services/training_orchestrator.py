@@ -447,10 +447,30 @@ class TrainingOrchestrator:
             for job in jobs
         ]
 
+    
+
 
 # Global instance
 _orchestrator: Optional[TrainingOrchestrator] = None
 
+def build_final_result(job: dict, preprocessor_path: str = None, metadata_path: str = None) -> TrainerFinalResult:
+    model_path = job.get("final_model_path")
+    if not model_path:
+        raise ValueError("Job has no model_path. Cannot produce final result.")
+
+    return TrainerFinalResult(
+        status="completed" if job['status'] == 'completed' else job['status'],
+        pipeline_id=job.get("pipeline_id", f"pipe_{job['job_id']}"),
+        model_id=job['model_id'],
+        task_type=job['task_type'],
+        artifacts={
+            "model_path": model_path,
+            "preprocessor_path": preprocessor_path or "",
+            "metadata_path": metadata_path or "",
+        },
+        training_metrics=job.get("best_metrics", {}),
+        target_column=job.get("target_column")
+    )
 
 def get_orchestrator() -> TrainingOrchestrator:
     """Get or create orchestrator instance"""

@@ -135,3 +135,16 @@ class HealthResponse(BaseModel):
     mlflow_connected: bool = False
     postgres_connected: bool = False
     minio_connected: bool = False
+
+
+
+class TrainerFinalResult(BaseModel):
+    status: str = "completed"  # "completed" or "failed"
+    pipeline_id: str
+    model_id: str
+    task_type: str
+
+    artifacts: Dict[str, str]  # model_path, preprocessor_path, metadata_path
+    training_metrics: Dict[str, Any]  # train_accuracy, val_accuracy, train_loss, etc.
+
+    target_column: Optional[str] = None

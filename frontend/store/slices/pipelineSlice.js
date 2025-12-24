@@ -15,8 +15,11 @@ const pipelineSlice = createSlice({
   name: "pipeline",
   initialState: {
     pipeline: null,
-    processed: null,
-    status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+    datapreparer: null,
+    modelselection: null,
+    trainer: null,
+    modelevaluation: null,
+    status: "idle", 
     error: null,
   },
   reducers: {
@@ -25,9 +28,18 @@ const pipelineSlice = createSlice({
       state.status = "idle";
       state.error = null;
     },
-    setProcessedData: (state, action) => {
-      state.processed = action.payload;
-    }
+    storedatapreparer: (state, action) => {
+      state.datapreparer = action.payload;
+    },
+    storemodelselection: (state, action) => {
+      state.modelselection = action.payload;
+    },
+    storetrainer: (state, action) => {
+      state.trainer = action.payload;
+    },
+    storemodelevaluation: (state, action) => {
+      state.modelevaluation = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -45,5 +57,5 @@ const pipelineSlice = createSlice({
   },
 });
 
-export const { resetPipeline, setProcessedData } = pipelineSlice.actions;
+export const { resetPipeline, storedatapreparer, storemodelselection, storetrainer, storemodelevaluation } = pipelineSlice.actions;
 export default pipelineSlice.reducer;

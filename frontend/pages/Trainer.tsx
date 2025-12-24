@@ -1,81 +1,99 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import { Zap, Play, ChevronDown } from 'lucide-react';
-import { StatusBadge } from '../components/StatusBadge';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { Zap, Play, ChevronDown } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import { StatusBadge } from "../components/StatusBadge";
+import { storetrainer } from "../store/slices/pipelineSlice";
 
 export default function Trainer() {
+  const dispatch = useDispatch();
+  const { datapreparer, modelselection } = useSelector((state) => state.pipeline);
+
   const [isTraining, setIsTraining] = useState(false);
   const [progress, setProgress] = useState(0);
   const [jobId, setJobId] = useState(null);
   const [trainingData, setTrainingData] = useState(null);
+  const [selectedModelId, setSelectedModelId] = useState(
+    modelselection?.candidates?.[0]?.model_id || ""
+  );
+  const [hyperparams, setHyperparams] = useState({});
 
-  // Hyperparameters state
-  const [hyperparams, setHyperparams] = useState({
-    n_estimators: 100,
-    max_depth: 10,
-    learning_rate: 0.001,
-    min_samples_split: 2,
-    min_samples_leaf: 1,
-    random_state: 42
-  });
+  // Load default hyperparameters when model changes
+  useEffect(() => {
+    if (!modelselection) return;
 
+    const model = modelselection.candidates.find((m) => m.model_id === selectedModelId);
+    if (model) setHyperparams(model.default_params || {});
+  }, [selectedModelId, modelselection]);
+
+  // Handle hyperparameter changes
   const handleHyperparamChange = (e) => {
     const { name, value } = e.target;
-    setHyperparams((prev) => ({ ...prev, [name]: value }));
+    setHyperparams((prev) => ({ ...prev, [name]: Number(value) }));
   };
 
+  // Start training
   const handleTrain = async () => {
+    if (!datapreparer || !modelselection) {
+      alert("Pipeline data missing");
+      return;
+    }
+
     setIsTraining(true);
     setProgress(0);
 
+    const payload = {
+      model_id: selectedModelId,
+      data_id: datapreparer.minio_object,
+      task_type: modelselection.dataset_analysis.task_type,
+      epochs: 100,
+      batch_size: 32,
+      learning_rate: hyperparams.learning_rate || 0.001,
+      hyperparameters: hyperparams,
+      target_column: datapreparer.target_column,
+      use_gpu: true,
+      num_workers: 4,
+      experiment_name: `pipeline_${Date.now()}`,
+      run_name: selectedModelId,
+      tags: { pipeline_id: datapreparer.pipeline_id },
+      early_stopping: true,
+      patience: 10,
+    };
+
     try {
-      // Start training with full required request body
-      const response = await axios.post('http://localhost:8002/train', {
-        model_id: 'mdl_504',
-        data_id: 'ds_004',
-        task_type: 'classification',
-        epochs: 100,
-        batch_size: 32,
-        learning_rate: parseFloat(hyperparams.learning_rate),
-        hyperparameters: hyperparams,
-        target_column: 'target',      // replace with actual target
-        use_gpu: true,
-        num_workers: 4,
-        experiment_name: 'my_experiment',
-        run_name: 'run_001',
-        tags: {},
-        early_stopping: true,
-        patience: 10
-      });
+      const response = await axios.post("http://localhost:8002/train", payload);
+      dispatch(storetrainer(response.data));
+      setJobId(response.data.job_id);
 
-      const { job_id } = response.data;
-      setJobId(job_id);
-
-      // Poll progress every 2 seconds
+      // Poll training status
       const interval = setInterval(async () => {
         try {
-          const progressRes = await axios.get(`http://localhost:8002/train/${job_id}`);
-          const data = progressRes.data;
-          setTrainingData(data);
-          setProgress(data.progress_percentage || 0);
+          const res = await axios.get(`http://localhost:8002/train/${response.data.job_id}`);
+          setTrainingData(res.data);
+          setProgress(res.data.progress_percentage || 0);
+          dispatch(storetrainer(res.data));
 
-          if (data.status === 'completed') {
+          if (res.data.status === "completed") {
             clearInterval(interval);
             setIsTraining(false);
+            alert("Training completed successfully!");
           }
-          if (data.status === 'failed') {
+
+          if (res.data.status === "failed") {
             clearInterval(interval);
             setIsTraining(false);
-            alert('Training failed!');
+            alert(`Training failed: ${res.data.error_message || "Unknown error"}`);
           }
         } catch (err) {
-          console.error('Error fetching progress:', err);
+          console.error(err);
+          clearInterval(interval);
+          setIsTraining(false);
         }
       }, 2000);
     } catch (err) {
-      console.error('Training submission failed:', err);
+      console.error("Training error:", err);
       setIsTraining(false);
-      alert('Failed to start training. Check console.');
+      alert(`Failed to start training: ${err.message}`);
     }
   };
 
@@ -89,41 +107,29 @@ export default function Trainer() {
           </div>
           <h1 className="text-gray-900">Trainer Microservice</h1>
         </div>
-        <p className="text-gray-500">Train your selected model with custom hyperparameters</p>
+        <p className="text-gray-500">Train selected model using prepared pipeline data</p>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* Configuration & Hyperparameters */}
+        {/* Left */}
         <div className="col-span-2 space-y-6">
           {/* Configuration */}
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <h3 className="text-gray-900 mb-4">Training Configuration</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Select Model</label>
-                <div className="relative">
-                  <select className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 appearance-none cursor-pointer hover:border-[#2563EB] transition-colors">
-                    <option value="mdl_504">mdl_504 - RandomForest (Winner)</option>
-                    <option value="mdl_503">mdl_503 - XGBoost</option>
-                    <option value="mdl_502">mdl_502 - Logistic Regression</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Training Strategy</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 border border-gray-200">
-                    <input type="radio" name="strategy" defaultChecked className="text-[#2563EB]" />
-                    <span className="text-sm text-gray-700">Auto</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 border border-gray-200">
-                    <input type="radio" name="strategy" className="text-[#2563EB]" />
-                    <span className="text-sm text-gray-700">Manual</span>
-                  </label>
-                </div>
-              </div>
+            <label className="block text-sm text-gray-700 mb-2">Select Model</label>
+            <div className="relative">
+              <select
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none"
+                value={selectedModelId}
+                onChange={(e) => setSelectedModelId(e.target.value)}
+              >
+                {modelselection?.candidates?.map((model) => (
+                  <option key={model.model_id} value={model.model_id}>
+                    {model.model_name} ({model.category})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-3.5 text-gray-400" />
             </div>
           </div>
 
@@ -133,50 +139,72 @@ export default function Trainer() {
             <div className="grid grid-cols-2 gap-4">
               {Object.entries(hyperparams).map(([key, value]) => (
                 <div key={key}>
-                  <label className="block text-sm text-gray-700 mb-2">{key}</label>
+                  <label className="block text-sm text-gray-700 mb-1">{key}</label>
                   <input
                     type="number"
-                    step={key === 'learning_rate' ? 0.001 : 1}
                     name={key}
                     value={value}
+                    step="any"
                     onChange={handleHyperparamChange}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 hover:border-[#2563EB] transition-colors"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg"
                   />
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Training Progress */}
-          {isTraining && trainingData && (
+          {/* Progress */}
+          {trainingData && (
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex justify-between mb-4">
                 <h3 className="text-gray-900">Training Progress</h3>
-                <StatusBadge status="in-progress" label="Training" />
+                <StatusBadge
+                  status={
+                    trainingData.status === "completed"
+                      ? "completed"
+                      : trainingData.status === "failed"
+                      ? "failed"
+                      : "in-progress"
+                  }
+                  label={trainingData.status}
+                />
               </div>
 
-              <div className="mb-4">
+              <div>
                 <div className="flex justify-between text-sm text-gray-600 mb-2">
-                  <span>Epoch {trainingData.current_epoch || 0} / {trainingData.total_epochs || 100}</span>
+                  <span>
+                    Epoch {trainingData.current_epoch || 0} / {trainingData.total_epochs || 0}
+                  </span>
                   <span>{progress.toFixed(1)}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div className="bg-[#2563EB] h-3 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                <div className="w-full bg-gray-200 h-3 rounded-full">
+                  <div
+                    className={`h-3 rounded-full transition-all ${
+                      trainingData.status === "failed"
+                        ? "bg-red-500"
+                        : "bg-[#2563EB]"
+                    }`}
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
               </div>
+
+              {trainingData.status === "failed" && trainingData.error_message && (
+                <p className="text-red-600 mt-2">{trainingData.error_message}</p>
+              )}
             </div>
           )}
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
+        {/* Right */}
+        <div>
           <button
             onClick={handleTrain}
             disabled={isTraining}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50"
           >
             <Play className="w-4 h-4" />
-            {isTraining ? 'Training...' : 'Start Training'}
+            {isTraining ? "Training..." : "Start Training"}
           </button>
         </div>
       </div>

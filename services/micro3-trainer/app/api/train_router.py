@@ -9,6 +9,8 @@ from app.models.request_models import TrainingRequest
 from app.models.response_models import TrainingJobResponse, TrainingProgressResponse, JobStatus
 from app.services.training_orchestrator import get_orchestrator
 from app.core.logger import logger
+from app.services.training_orchestrator import get_orchestrator
+from app.models.response_models import TrainerFinalResult
 
 router = APIRouter()
 
@@ -189,3 +191,26 @@ async def cancel_training_job(job_id: str):
     logger.info(f"Cancelled training job: {job_id}")
     
     return {"message": f"Job {job_id} cancelled successfully"}
+
+
+@router.get("/{job_id}/final_result", response_model=TrainerFinalResult)
+async def get_final_result(job_id: str):
+    orchestrator = get_orchestrator()
+    job = orchestrator.get_job_status(job_id)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    if job.status != JobStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail=f"Job {job_id} is not completed yet")
+    
+    preprocessor_path = f"trained-models/{job_id}/preprocessor.pkl"
+    metadata_path = f"trained-models/{job_id}/metadata.json"
+    
+    final_result = orchestrator.build_final_result(
+        job=job.__dict__,
+        preprocessor_path=preprocessor_path,
+        metadata_path=metadata_path
+    )
+    
+    return final_result
