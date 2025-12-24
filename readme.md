@@ -21,6 +21,16 @@ Azure devops: https://dev.azure.com/SoulaimaneOuhmida/MicroLearn
 - tracks state and progress,
 - exposes an API for execution & monitoring.
 
+## 4. Evaluator
+- Takes a trained model (or checkpoint)
+- Runs evaluation on a validation/test dataset
+- Computes metrics (AUC, F1, RMSE, Accuracy…)
+- Generates plots (ROC curve, confusion matrix, error curves)
+- Saves:
+    - Metrics → PostgreSQL
+    - Plots → MinIO
+
+
 
 
 

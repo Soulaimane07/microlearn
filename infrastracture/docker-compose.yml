@@ -61,7 +61,6 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - redis
       - nats
       - minio
     environment:
@@ -85,19 +84,23 @@ services:
     ports:
       - "8001:8001"
     depends_on:
-      - redis
-      - nats
       - postgres
+      - minio
+      - nats
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: microlearn
+      
       NATS_HOST: nats
       NATS_PORT: 4222
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: data-preparer
 
   trainer:
     build: ../services/micro3-trainer
@@ -124,7 +127,7 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET: models
+      MINIO_BUCKET: data-preparer
 
 volumes:
   postgres_data:

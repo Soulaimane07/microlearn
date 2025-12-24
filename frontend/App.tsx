@@ -11,6 +11,7 @@ import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Profile } from './pages/Profile';
 import  Details  from './pages/Pipeline/Details';
+import Evaluator from './pages/Evaluator';
 
 function AppContent() {
   const location = useLocation();
@@ -28,6 +29,7 @@ function AppContent() {
           <Route path="/pipeline/:pipelineId" >
             <Route index element={<Details />} />
           </Route>
+          <Route path="/evaluator" element={<Evaluator />} />
 
           <Route path="/microservices" element={<Microservices />} />
           <Route path="/datasets" element={<Datasets />} />

@@ -17,14 +17,14 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # PostgreSQL Configuration
-    POSTGRES_HOST: str = "postgres"
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "microlearn"
     
     # MinIO Configuration
-    MINIO_ENDPOINT: str = "minio:9000"
+    MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_SECURE: bool = False
