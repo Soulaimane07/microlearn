@@ -52,3 +52,10 @@ cd services/micro2-model_selector
 venv\Scripts\activate     
 uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 ```
+
+## Micro3 - Trainer
+```
+cd services/micro3-trainer
+venv\Scripts\activate     
+uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+```

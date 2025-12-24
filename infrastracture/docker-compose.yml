@@ -55,6 +55,76 @@ services:
       timeout: 5s
       retries: 3
 
+  datapreparer:
+    build: ../services/micro1-data_preparer
+    container_name: micro1-datapreparer
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - nats
+      - minio
+    environment:
+      # Service config
+      SERVICE_NAME: DataPreparer
+      SERVICE_PORT: 8000
+
+      # NATS (event bus)
+      NATS_HOST: nats
+      NATS_PORT: 4222
+
+      # MinIO (dataset storage)
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: data-preparer
+
+  model-selector:
+    build: ../services/micro2-model_selector
+    container_name: micro2-model-selector
+    ports:
+      - "8001:8001"
+    depends_on:
+      - redis
+      - nats
+      - postgres
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: microlearn
+      NATS_HOST: nats
+      NATS_PORT: 4222
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+  trainer:
+    build: ../services/micro3-trainer
+    container_name: micro3-trainer
+    ports:
+      - "8002:8002"
+    depends_on:
+      - postgres
+      - minio
+    environment:
+      SERVICE_NAME: Trainer
+      SERVICE_HOST: 0.0.0.0
+      SERVICE_PORT: 8002
+      DEBUG: "false"
+
+      # PostgreSQL
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: microlearn
+
+      # MinIO
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: models
 
 volumes:
   postgres_data:
