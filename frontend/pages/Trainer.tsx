@@ -112,7 +112,7 @@ export default function Trainer() {
 
       <div className="grid grid-cols-3 gap-6">
         {/* Left */}
-        <div className="col-span-2 space-y-6">
+        <div className="col-span-2 space-y-6 min-h-screen">
           {/* Configuration */}
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <h3 className="text-gray-900 mb-4">Training Configuration</h3>

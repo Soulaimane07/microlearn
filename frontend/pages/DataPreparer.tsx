@@ -101,7 +101,7 @@ export default function DataPreparer({pipeline_id}) {
       </div>
       <p className="text-gray-500 mb-6">Upload, clean, and transform your datasets for ML</p>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-3 gap-6 min-h-screen">
         {/* Left Column: Upload & Metadata */}
         <div className="col-span-2 space-y-6">
           {/* Upload Section */}

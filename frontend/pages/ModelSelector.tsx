@@ -61,7 +61,7 @@ export default function ModelSelector({ pipelineId, targetColumn }) {
 
       <div className="grid grid-cols-3 gap-6">
         {/* Config */}
-        <div className="col-span-2 space-y-6">
+        <div className="col-span-2 space-y-6 min-h-screen">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <h3 className="text-gray-900 mb-4">Configuration</h3>
             <div className="space-y-4">
@@ -74,17 +74,6 @@ export default function ModelSelector({ pipelineId, targetColumn }) {
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg"
                 />
               </div>
-
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Target Column</label>
-                <input
-                  type="text"
-                  value={targetColumn}
-                  disabled
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg"
-                />
-              </div>
-
               <div>
                 <label className="block text-sm text-gray-700 mb-3">Allowed Algorithm Families</label>
                 <div className="grid grid-cols-2 gap-3">
@@ -93,16 +82,6 @@ export default function ModelSelector({ pipelineId, targetColumn }) {
                       key={algo.id}
                       className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 border border-gray-200"
                     >
-                      <input
-                        type="checkbox"
-                        checked={algo.selected}
-                        onChange={() => {
-                          const newAlgos = [...algorithms];
-                          newAlgos[idx].selected = !newAlgos[idx].selected;
-                          setAlgorithms(newAlgos);
-                        }}
-                        className="text-[#2563EB] rounded"
-                      />
                       <span className="text-sm text-gray-700">{algo.name}</span>
                     </label>
                   ))}
