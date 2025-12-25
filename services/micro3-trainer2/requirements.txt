@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic
+scikit-learn
+lightgbm
+joblib
+pandas
+numpy
+minio
+psycopg2-binary
+nats-py==2.12.0
+loguru==0.7.3
+
