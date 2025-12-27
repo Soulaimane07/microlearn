@@ -1,4 +1,4 @@
-# MicroLearn — Orchestrateur AutoML par microservices  
+![1154063f-43da-45d8-9c77-8e3c269fdee9](https://github.com/user-attachments/assets/dfaded76-2e6e-4270-b47d-a2fa1c05245b)# MicroLearn — Orchestrateur AutoML par microservices  
 
 > **Projet académique** – Plateforme AutoML distribuée par microservices, développée en mode startup par une équipe de 4 personnes.  
 > Objectif : automatiser et orchestrer le cycle complet de Machine Learning (préparation → sélection → entraînement → évaluation → déploiement) via API et dashboard web.  
@@ -17,7 +17,8 @@ https://drive.google.com/file/d/16LNtocx52XeOrJTs5PAYD2aQ5muyvRnh/view?usp=drive
 
 ---
 # Architecture
-![Architecture](./Files//architecture.png)
+![Architecture](https://github.com/user-attachments/assets/ce749a4b-f5e0-4f43-a4d3-7c2c83044a55)
+
 
 ## 1. Orchestrator
 - receives a pipeline definition (YAML/JSON),
